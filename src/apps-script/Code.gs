@@ -26,27 +26,37 @@ const CONFIG = {
   }
 };
 
-// Incident filtering criteria - Based on finalized decisions
+// Incident filtering criteria - Based on finalized decisions with platform-specific statuses
 const INCIDENT_FILTERING = {
-  // INCLUDE ONLY these statuses
-  includeStatuses: [
-    'Stabilized',
-    'Postmortem Prep', 
-    'Postmortem Meeting Prep',
-    'Closed'
-  ],
+  // INCLUDE ONLY these statuses - Platform Specific
+  includeStatuses: {
+    'incident.io': [
+      'Stabilized',
+      'Postmortem Prep', 
+      'Postmortem Meeting Prep',
+      'Closed'
+    ],
+    'firehydrant': [
+      'Stabilized',
+      'Remediation',
+      'Resolved',
+      'Retrospective Started',
+      'Retrospective Completed',
+      'Closed'
+    ]
+  },
   
-  // EXCLUDE these statuses
+  // EXCLUDE these statuses (common across platforms)
   excludeStatuses: [
     'Declined',
     'Canceled', 
     'Triage'
   ],
   
-  // INCLUDE ONLY these incident modes
+  // INCLUDE ONLY these incident modes (incident.io only)
   includeModes: ['standard', 'retrospective'],
   
-  // EXCLUDE these incident types
+  // EXCLUDE these incident types (common across platforms)
   excludeTypes: ['[TEST]', '[Preemptive SEV]'],
   
   // Multi-tiered date ranges

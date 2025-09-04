@@ -47,7 +47,7 @@ function getDefaultConfiguration() {
     maxLookbackDays: INCIDENT_FILTERING.dateRanges.bucket3,
     emailFocusDays: INCIDENT_FILTERING.dateRanges.emailFocus,
     
-    // Status filtering (INCLUDE ONLY these statuses)
+    // Status filtering (platform-specific)
     includeStatuses: INCIDENT_FILTERING.includeStatuses,
     
     // Email configuration

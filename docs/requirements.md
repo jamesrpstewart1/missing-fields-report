@@ -24,17 +24,28 @@ Automated system to monitor and report missing required fields across incident.i
 
 ## Incident Filtering Criteria ✅ FINALIZED
 
-### Status Filtering
+### Status Filtering - Platform Specific
 - **Decision**: Include ONLY incidents with the following statuses:
+
+**incident.io (Square/Cash)**:
   - Stabilized
   - Postmortem Prep
   - Postmortem Meeting Prep
   - Closed
+
+**FireHydrant (Afterpay)**:
+  - Stabilized
+  - Remediation
+  - Resolved
+  - Retrospective Started
+  - Retrospective Completed
+  - Closed
+
 - **Exclusions**: 
   - Declined
   - Canceled
   - Triage
-  - All other statuses
+  - All other statuses not listed above
 
 ### Time Range Filtering
 - **Decision**: Multi-tiered approach for comprehensive tracking:

@@ -30,17 +30,27 @@ This document captures all key decisions made during the project development for
   - Shows improvement over time as process matures
 
 ### 4. Incident Filtering ✅
-#### Status Filtering (INCLUDE ONLY)
+#### Status Filtering - Platform Specific (INCLUDE ONLY)
+
+**incident.io (Square/Cash)**:
 - Stabilized
 - Postmortem Prep
 - Postmortem Meeting Prep
+- Closed
+
+**FireHydrant (Afterpay)**:
+- Stabilized
+- Remediation
+- Resolved
+- Retrospective Started
+- Retrospective Completed
 - Closed
 
 #### Status Filtering (EXCLUDE)
 - Declined
 - Canceled
 - Triage
-- All other statuses
+- All other statuses not listed above
 
 #### Incident Mode Filtering (INCLUDE ONLY)
 - 'standard' incident mode

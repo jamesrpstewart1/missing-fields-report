@@ -142,13 +142,18 @@ function filterIncidentsByCriteria(incidents, config) {
   
   let filteredIncidents = incidents;
   
-  // 1. INCLUDE ONLY specific statuses (finalized decision)
+  // 1. INCLUDE ONLY specific statuses (platform-specific)
   filteredIncidents = filteredIncidents.filter(incident => {
     const status = incident.incident_status?.name || incident.status || '';
-    const isIncluded = INCIDENT_FILTERING.includeStatuses.includes(status);
+    const platform = incident.platform || '';
+    
+    // Get platform-specific allowed statuses
+    const allowedStatuses = INCIDENT_FILTERING.includeStatuses[platform] || [];
+    const isIncluded = allowedStatuses.includes(status);
+    
     return isIncluded;
   });
-  console.log(`   📊 After status inclusion filter (${INCIDENT_FILTERING.includeStatuses.join(', ')}): ${filteredIncidents.length} incidents`);
+  console.log(`   📊 After platform-specific status inclusion filter: ${filteredIncidents.length} incidents`);
   
   // 2. EXCLUDE specific incident types (finalized decision)
   filteredIncidents = filteredIncidents.filter(incident => {
