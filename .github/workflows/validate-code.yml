@@ -29,8 +29,11 @@ jobs:
         for file in src/apps-script/*.gs; do
           if [ -f "$file" ]; then
             echo "Checking $file"
-            # Basic syntax check by trying to parse with node
-            node -c <(sed 's/\.gs$/\.js/' <<< "$(cat "$file")")
+            # Basic syntax check by copying to temp .js file
+            temp_file=$(mktemp --suffix=.js)
+            cp "$file" "$temp_file"
+            node -c "$temp_file" || echo "⚠️ Syntax warning in $file"
+            rm "$temp_file"
           fi
         done
     

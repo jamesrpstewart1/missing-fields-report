@@ -131,8 +131,13 @@ function sendTestEmail() {
  */
 function getEmailRecipients(config) {
   // Try to get from configuration first
-  if (config.emailRecipients && config.emailRecipients.length > 0) {
-    return config.emailRecipients;
+  if (config.emailRecipients) {
+    // Handle both string and array formats
+    if (Array.isArray(config.emailRecipients)) {
+      return config.emailRecipients.filter(email => email && email.trim());
+    } else if (typeof config.emailRecipients === 'string') {
+      return config.emailRecipients.split(',').map(email => email.trim()).filter(email => email);
+    }
   }
   
   // Fallback to script properties
