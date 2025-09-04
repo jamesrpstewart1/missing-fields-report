@@ -1,0 +1,30 @@
+# Google Apps Script
+*.gs~
+.clasp.json
+
+# Credentials and secrets
+config/credentials.json
+config/api-keys.json
+*.env
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+tmp/
+temp/
+.DS_Store
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Node modules (if any)
+node_modules/
+
+# Build artifacts
+dist/
+build/
