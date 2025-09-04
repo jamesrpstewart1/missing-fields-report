@@ -6,15 +6,15 @@
  * FEATURES: Cross-platform integration, field validation, email notifications, tracking
  */
 
-// Configuration for both platforms
+// Configuration for both platforms - Updated with finalized decisions
 const CONFIG = {
   incidentio: {
     square: {
-      apiKey: PropertiesService.getScriptProperties().getProperty('INCIDENT_IO_SQUARE_API_KEY'),
+      apiKey: PropertiesService.getScriptProperties().getProperty('SQUARE_API_KEY'),
       baseUrl: 'https://api.incident.io/v2'
     },
     cash: {
-      apiKey: PropertiesService.getScriptProperties().getProperty('INCIDENT_IO_CASH_API_KEY'),
+      apiKey: PropertiesService.getScriptProperties().getProperty('CASH_API_KEY'),
       baseUrl: 'https://api.incident.io/v2'
     }
   },
@@ -23,6 +23,38 @@ const CONFIG = {
       apiKey: PropertiesService.getScriptProperties().getProperty('FIREHYDRANT_API_KEY'),
       baseUrl: 'https://api.firehydrant.io/v1'
     }
+  }
+};
+
+// Incident filtering criteria - Based on finalized decisions
+const INCIDENT_FILTERING = {
+  // INCLUDE ONLY these statuses
+  includeStatuses: [
+    'Stabilized',
+    'Postmortem Prep', 
+    'Postmortem Meeting Prep',
+    'Closed'
+  ],
+  
+  // EXCLUDE these statuses
+  excludeStatuses: [
+    'Declined',
+    'Canceled', 
+    'Triage'
+  ],
+  
+  // INCLUDE ONLY these incident modes
+  includeModes: ['standard', 'retrospective'],
+  
+  // EXCLUDE these incident types
+  excludeTypes: ['[TEST]', '[Preemptive SEV]'],
+  
+  // Multi-tiered date ranges
+  dateRanges: {
+    emailFocus: 7,      // Email shows detailed list for last 7 days
+    bucket1: 30,        // 7-30 days bucket
+    bucket2: 60,        // 30-60 days bucket  
+    bucket3: 90         // 90+ days bucket
   }
 };
 

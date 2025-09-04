@@ -22,31 +22,38 @@ Automated system to monitor and report missing required fields across incident.i
 - **Delivery**: Via MailApp/GmailApp
 - **Content**: Incident summary, missing fields, direct links to incidents
 
-## Incident Filtering Criteria (TBD)
+## Incident Filtering Criteria ✅ FINALIZED
 
 ### Status Filtering
-- **Question**: Which incident statuses to include?
-- **Options**: 
-  - Active incidents only
-  - All open incidents
-  - Include resolved incidents within timeframe
-- **Decision**: [TO BE DETERMINED]
+- **Decision**: Include ONLY incidents with the following statuses:
+  - Stabilized
+  - Postmortem Prep
+  - Postmortem Meeting Prep
+  - Closed
+- **Exclusions**: 
+  - Declined
+  - Canceled
+  - Triage
+  - All other statuses
 
 ### Time Range Filtering
-- **Question**: How far back to look?
-- **Options**:
-  - 7 days
-  - 30 days
-  - Custom configurable range
-- **Decision**: [TO BE DETERMINED]
+- **Decision**: Multi-tiered approach for comprehensive tracking:
+  - **Email Report**: Focus on last 7 days (detailed incident list)
+  - **Google Sheet Tracking**: Extended ranges for trend analysis
+    - 7-30 days bucket
+    - 30-60 days bucket
+    - 90+ days bucket
+  - **Email Summary**: Show counts for older buckets with reference to full report
 
-### Cutoff Date Filtering
-- **Question**: Exclude very old incidents?
-- **Options**:
-  - Hard cutoff date (e.g., incidents before 2024-01-01)
-  - Rolling cutoff (e.g., exclude incidents older than 90 days)
-  - No cutoff
-- **Decision**: [TO BE DETERMINED]
+### Incident Mode Filtering
+- **Decision**: Include only:
+  - 'standard' incident mode
+  - 'retrospective' incident mode
+
+### Incident Type Exclusions
+- **Decision**: Exclude incidents containing:
+  - '[TEST]'
+  - '[Preemptive SEV]'
 
 ### Business Unit Filtering
 - **Requirement**: Filter by business unit
@@ -55,39 +62,37 @@ Automated system to monitor and report missing required fields across incident.i
   - **FireHydrant**: Afterpay incidents
 - **Implementation**: Leverage existing filtering logic from PPE Monthly Report
 
-## Email Configuration (TBD)
+## Email Configuration ✅ FINALIZED
 
 ### Recipients
-- **Question**: Who should receive notifications?
-- **Options**:
-  - Static list of email addresses
-  - Dynamic based on incident ownership
-  - Configurable via Google Sheet
-- **Decision**: [TO BE DETERMINED]
+- **Development/Testing**: jamesstewart@squareup.com
+- **Production**: Team email address (to be updated after successful testing)
+- **Configuration**: Stored in Google Sheets Recipients sheet for easy updates
 
 ### Email Format
-- **Template**: HTML format with structured layout
+- **Template**: HTML format with professional styling
 - **Content Requirements**:
-  - Incident title and ID
-  - Platform (incident.io or FireHydrant)
-  - Business unit
-  - Missing fields list
-  - Direct links to incidents
-  - Summary statistics
-- **Branding**: [TO BE DETERMINED]
+  - **Primary Focus**: Last 7 days incidents (detailed list with incident refs)
+  - **Summary Counts**: 7-30 days, 30-60 days, 90+ days buckets
+  - **Platform identification**: incident.io or FireHydrant
+  - **Business unit**: Square, Cash, or Afterpay
+  - **Missing fields**: Clear list of which fields are missing
+  - **Direct links**: Clickable incident references
+  - **Call to action**: Reference to full Google Sheet report for older incidents
+
+### Timing & Frequency
+- **Schedule**: Daily at 9:00 AM
+- **Timezone**: Global team friendly
+- **Automation**: Time-driven Google Apps Script triggers
 
 ### Sender Configuration
-- **Address**: [TO BE DETERMINED]
-- **Name**: [TO BE DETERMINED]
-- **Reply-to**: [TO BE DETERMINED]
+- **Method**: MailApp (Google Apps Script default)
+- **Subject Format**: "Missing Fields Report - [X] Incidents Need Attention"
+- **From**: Automated system sender
 
 ### Escalation Rules
-- **Question**: Should there be escalation for persistent missing fields?
-- **Options**:
-  - No escalation
-  - Escalate after X days
-  - Different recipients for escalation
-- **Decision**: [TO BE DETERMINED]
+- **Initial Approach**: No escalation (focus on process establishment)
+- **Future Enhancement**: Consider escalation after system is established
 
 ## Technical Requirements
 

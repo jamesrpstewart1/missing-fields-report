@@ -39,16 +39,26 @@ function getConfiguration() {
 }
 
 /**
- * Get default configuration
+ * Get default configuration based on finalized decisions
  */
 function getDefaultConfiguration() {
   return {
-    lookbackDays: 7,
-    includeStatuses: [], // Empty means include all statuses
-    cutoffDate: null,
-    emailRecipients: [],
-    includeResolved: false,
-    businessUnits: ['square', 'cash', 'afterpay']
+    // Multi-tiered date ranges (all incidents up to 90+ days)
+    maxLookbackDays: INCIDENT_FILTERING.dateRanges.bucket3,
+    emailFocusDays: INCIDENT_FILTERING.dateRanges.emailFocus,
+    
+    // Status filtering (INCLUDE ONLY these statuses)
+    includeStatuses: INCIDENT_FILTERING.includeStatuses,
+    
+    // Email configuration
+    emailRecipients: ['jamesstewart@squareup.com'], // Development/testing
+    
+    // Business units
+    businessUnits: ['square', 'cash', 'afterpay'],
+    
+    // Incident filtering
+    includeModes: INCIDENT_FILTERING.includeModes,
+    excludeTypes: INCIDENT_FILTERING.excludeTypes
   };
 }
 

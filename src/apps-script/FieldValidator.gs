@@ -135,48 +135,74 @@ function getMissingFieldsSummary(incidentsWithMissingFields) {
 }
 
 /**
- * Filter incidents based on configuration criteria
+ * Filter incidents based on finalized criteria
  */
 function filterIncidentsByCriteria(incidents, config) {
-  console.log(`🔍 Filtering ${incidents.length} incidents by criteria...`);
+  console.log(`🔍 Filtering ${incidents.length} incidents by finalized criteria...`);
   
   let filteredIncidents = incidents;
   
-  // Filter by status if specified
-  if (config.includeStatuses && config.includeStatuses.length > 0) {
-    filteredIncidents = filteredIncidents.filter(incident => {
-      const status = incident.incident_status?.name || incident.status || '';
-      return config.includeStatuses.includes(status);
-    });
-    console.log(`   📊 After status filter: ${filteredIncidents.length} incidents`);
-  }
-  
-  // Filter by cutoff date if specified
-  if (config.cutoffDate) {
-    const cutoffDate = new Date(config.cutoffDate);
-    filteredIncidents = filteredIncidents.filter(incident => {
-      const createdAt = new Date(incident.created_at);
-      return createdAt >= cutoffDate;
-    });
-    console.log(`   📊 After cutoff date filter: ${filteredIncidents.length} incidents`);
-  }
-  
-  // Exclude certain incident types
-  const excludedTypes = ['[TEST]', '[Preemptive SEV]'];
-  filteredIncidents = filteredIncidents.filter(incident => {
-    const type = incident.incident_type?.name || incident.type || '';
-    return !excludedTypes.some(excludedType => type.includes(excludedType));
-  });
-  console.log(`   📊 After type exclusion filter: ${filteredIncidents.length} incidents`);
-  
-  // Exclude certain statuses
-  const excludedStatuses = ['Declined', 'Canceled', 'Cancelled', 'Triage', 'Merged'];
+  // 1. INCLUDE ONLY specific statuses (finalized decision)
   filteredIncidents = filteredIncidents.filter(incident => {
     const status = incident.incident_status?.name || incident.status || '';
-    return !excludedStatuses.includes(status);
+    const isIncluded = INCIDENT_FILTERING.includeStatuses.includes(status);
+    return isIncluded;
   });
-  console.log(`   📊 After status exclusion filter: ${filteredIncidents.length} incidents`);
+  console.log(`   📊 After status inclusion filter (${INCIDENT_FILTERING.includeStatuses.join(', ')}): ${filteredIncidents.length} incidents`);
+  
+  // 2. EXCLUDE specific incident types (finalized decision)
+  filteredIncidents = filteredIncidents.filter(incident => {
+    const type = incident.incident_type?.name || incident.type || '';
+    const shouldExclude = INCIDENT_FILTERING.excludeTypes.some(excludedType => type.includes(excludedType));
+    return !shouldExclude;
+  });
+  console.log(`   📊 After type exclusion filter (${INCIDENT_FILTERING.excludeTypes.join(', ')}): ${filteredIncidents.length} incidents`);
+  
+  // 3. INCLUDE ONLY specific incident modes (finalized decision)
+  filteredIncidents = filteredIncidents.filter(incident => {
+    const mode = incident.mode || '';
+    const isIncluded = INCIDENT_FILTERING.includeModes.includes(mode);
+    return isIncluded;
+  });
+  console.log(`   📊 After mode inclusion filter (${INCIDENT_FILTERING.includeModes.join(', ')}): ${filteredIncidents.length} incidents`);
   
   console.log(`✅ Final filtered incidents: ${filteredIncidents.length}`);
   return filteredIncidents;
+}
+
+/**
+ * Categorize incidents by date buckets for multi-tiered reporting
+ */
+function categorizeIncidentsByDateBuckets(incidents) {
+  console.log(`📅 Categorizing ${incidents.length} incidents by date buckets...`);
+  
+  const now = new Date();
+  const buckets = {
+    emailFocus: [],     // Last 7 days - detailed in email
+    bucket1: [],        // 7-30 days
+    bucket2: [],        // 30-60 days
+    bucket3: []         // 90+ days
+  };
+  
+  incidents.forEach(incident => {
+    const createdAt = new Date(incident.created_at);
+    const daysAgo = Math.floor((now - createdAt) / (1000 * 60 * 60 * 24));
+    
+    if (daysAgo <= INCIDENT_FILTERING.dateRanges.emailFocus) {
+      buckets.emailFocus.push(incident);
+    } else if (daysAgo <= INCIDENT_FILTERING.dateRanges.bucket1) {
+      buckets.bucket1.push(incident);
+    } else if (daysAgo <= INCIDENT_FILTERING.dateRanges.bucket2) {
+      buckets.bucket2.push(incident);
+    } else {
+      buckets.bucket3.push(incident);
+    }
+  });
+  
+  console.log(`   📊 Email focus (0-${INCIDENT_FILTERING.dateRanges.emailFocus} days): ${buckets.emailFocus.length} incidents`);
+  console.log(`   📊 Bucket 1 (${INCIDENT_FILTERING.dateRanges.emailFocus+1}-${INCIDENT_FILTERING.dateRanges.bucket1} days): ${buckets.bucket1.length} incidents`);
+  console.log(`   📊 Bucket 2 (${INCIDENT_FILTERING.dateRanges.bucket1+1}-${INCIDENT_FILTERING.dateRanges.bucket2} days): ${buckets.bucket2.length} incidents`);
+  console.log(`   📊 Bucket 3 (${INCIDENT_FILTERING.dateRanges.bucket2+1}+ days): ${buckets.bucket3.length} incidents`);
+  
+  return buckets;
 }
