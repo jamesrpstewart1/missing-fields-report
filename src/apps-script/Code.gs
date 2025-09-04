@@ -64,12 +64,12 @@ const INCIDENT_FILTERING = {
     emailFocus: 7,      // Email shows detailed list for last 7 days
     bucket1: 30,        // 7-30 days bucket
     bucket2: 60,        // 30-60 days bucket  
-    bucket3: 90         // 90+ days bucket
+    bucket3: 90,        // 60-90 days bucket
+    maxLookback: 365    // Total lookback period (12 months) - incidents 90+ days go in final bucket
   }
 };
 
-// Google Sheets ID for configuration and logging
-const SHEET_ID = PropertiesService.getScriptProperties().getProperty('GOOGLE_SHEET_ID') || '1TF0p345-fZaK5PnR2TgsmskxA_OHfGLyUL4Qp3b99Eg';
+// For sheet-bound script, we'll use SpreadsheetApp.getActiveSpreadsheet() instead of SHEET_ID
 
 // Required fields to monitor
 const REQUIRED_FIELDS = [
@@ -93,6 +93,7 @@ function createCustomMenu() {
   ui.createMenu('🔍 Missing Fields Report')
     .addItem('🔄 Check Missing Fields Now', 'runMissingFieldsCheck')
     .addItem('📧 Send Test Email', 'sendTestEmail')
+    .addItem('📊 Update Summary Sheet', 'testSummaryUpdate')
     .addSeparator()
     .addSubMenu(ui.createMenu('⚙️ Automation')
       .addItem('🔧 Setup Daily Automation', 'setupDailyAutomation')
@@ -142,6 +143,12 @@ function runMissingFieldsCheck() {
       
       // Update tracking sheet
       updateTrackingSheet(incidentsWithMissingFields);
+      
+      // Update summary sheet
+      updateSummarySheet(incidentsWithMissingFields);
+    } else {
+      // Update summary sheet even when no incidents (to show zeros)
+      updateSummarySheet([]);
     }
     
     // Log execution
@@ -164,13 +171,74 @@ function dailyAutomatedCheck() {
   runMissingFieldsCheck();
 }
 
+/**
+ * Test function to update summary sheet with sample data
+ */
+function testSummaryUpdate() {
+  console.log('🧪 Testing summary sheet update...');
+  
+  try {
+    // Create sample incidents for testing
+    const sampleIncidents = [
+      {
+        reference: 'INC-001',
+        platform: 'incident.io',
+        businessUnit: 'square',
+        created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
+        missingFields: ['Affected Markets']
+      },
+      {
+        reference: 'INC-002',
+        platform: 'incident.io',
+        businessUnit: 'cash',
+        created_at: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(), // 15 days ago
+        missingFields: ['Causal Type', 'Stabilization Type']
+      },
+      {
+        reference: 'INC-003',
+        platform: 'firehydrant',
+        businessUnit: 'afterpay',
+        created_at: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(), // 45 days ago
+        missingFields: ['Affected Markets']
+      },
+      {
+        reference: 'INC-004',
+        platform: 'incident.io',
+        businessUnit: 'square',
+        created_at: new Date(Date.now() - 120 * 24 * 60 * 60 * 1000).toISOString(), // 120 days ago
+        missingFields: ['Stabilization Type']
+      }
+    ];
+    
+    updateSummarySheet(sampleIncidents);
+    
+    const ui = SpreadsheetApp.getUi();
+    ui.alert(
+      '✅ Summary Sheet Test Complete',
+      'Summary sheet has been updated with sample data to test the functionality.\n\n' +
+      'Check the Summary tab to see the date bucket breakdown.',
+      ui.ButtonSet.OK
+    );
+    
+  } catch (error) {
+    console.error('❌ Summary sheet test failed:', error.toString());
+    
+    const ui = SpreadsheetApp.getUi();
+    ui.alert(
+      '❌ Summary Sheet Test Failed',
+      `Failed to update summary sheet:\n\n${error.toString()}`,
+      ui.ButtonSet.OK
+    );
+  }
+}
+
 // TODO: Implement remaining functions
 // - getConfiguration()
 // - fetchIncidentsFromIncidentIO()
 // - fetchIncidentsFromFireHydrant()
 // - validateRequiredFields()
 // - sendMissingFieldsNotification()
-// - updateTrackingSheet()
+// - sendTestEmail()
 // - logExecution()
 // - setupDailyAutomation()
 // - cancelDailyAutomation()

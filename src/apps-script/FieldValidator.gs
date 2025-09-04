@@ -44,7 +44,7 @@ function hasRequiredField(incident, fieldName) {
     fieldValue = getIncidentIOFieldValue(incident, fieldName);
   } else if (incident.platform === 'firehydrant') {
     // Handle FireHydrant field mapping
-    fieldValue = getFireHydrantFieldValue(incident, fieldName);
+    fieldValue = getFireHydrantFieldValueMapped(incident, fieldName);
   }
   
   // Consider field missing if it's empty, null, undefined, or whitespace-only
@@ -78,7 +78,7 @@ function getIncidentIOFieldValue(incident, fieldName) {
 /**
  * Get field value from FireHydrant incident with field name mapping
  */
-function getFireHydrantFieldValue(incident, fieldName) {
+function getFireHydrantFieldValueMapped(incident, fieldName) {
   // Map required field names to FireHydrant label keys
   const fieldMapping = {
     'Affected Markets': ['affected_markets', 'markets_affected', 'impacted_markets'],
@@ -88,7 +88,7 @@ function getFireHydrantFieldValue(incident, fieldName) {
   
   const possibleFieldNames = fieldMapping[fieldName] || [fieldName.toLowerCase().replace(/\s+/g, '_')];
   
-  // Try each possible field name
+  // Try each possible field name using the helper function from IncidentAPI.gs
   for (const possibleName of possibleFieldNames) {
     const values = getFireHydrantFieldValue(incident, possibleName);
     if (values.length > 0 && values[0] && values[0].trim()) {

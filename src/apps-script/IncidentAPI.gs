@@ -209,12 +209,12 @@ function getCustomFieldValue(incident, fieldName) {
  */
 function getFireHydrantFieldValue(incident, fieldName) {
   // FireHydrant uses labels for custom fields
-  if (!incident.labels) {
-    return [];
+  if (!incident.labels || !Array.isArray(incident.labels)) {
+    return [''];
   }
   
-  const label = incident.labels.find(label => label.key === fieldName);
-  return label ? [label.value] : [''];
+  const label = incident.labels.find(label => label && label.key === fieldName);
+  return label && label.value ? [label.value] : [''];
 }
 
 /**

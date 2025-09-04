@@ -10,7 +10,7 @@ function getConfiguration() {
   console.log('📋 Loading configuration from Google Sheets...');
   
   try {
-    const sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName('Config');
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Config');
     
     if (!sheet) {
       console.log('⚠️ Config sheet not found, using default configuration');
@@ -43,8 +43,8 @@ function getConfiguration() {
  */
 function getDefaultConfiguration() {
   return {
-    // Multi-tiered date ranges (all incidents up to 90+ days)
-    maxLookbackDays: INCIDENT_FILTERING.dateRanges.bucket3,
+    // Multi-tiered date ranges (all incidents up to 12 months)
+    maxLookbackDays: INCIDENT_FILTERING.dateRanges.maxLookback,
     emailFocusDays: INCIDENT_FILTERING.dateRanges.emailFocus,
     
     // Status filtering (platform-specific)
@@ -93,13 +93,13 @@ function parseConfigValue(value) {
 }
 
 /**
- * Update tracking sheet with incidents
+ * Update tracking sheet with incidents (includes Date Bucket column)
  */
 function updateTrackingSheet(incidentsWithMissingFields) {
   console.log(`📝 Updating tracking sheet with ${incidentsWithMissingFields.length} incidents...`);
   
   try {
-    const sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName('Tracking');
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Tracking');
     
     if (!sheet) {
       console.log('⚠️ Tracking sheet not found, skipping tracking update');
@@ -108,18 +108,23 @@ function updateTrackingSheet(incidentsWithMissingFields) {
     
     const timestamp = new Date().toISOString();
     
-    // Prepare data for tracking sheet
-    const trackingData = incidentsWithMissingFields.map(incident => [
-      timestamp,
-      incident.reference,
-      incident.platform,
-      incident.businessUnit,
-      incident.name || incident.summary || '',
-      incident.missingFields.join(', '),
-      incident.url,
-      new Date(incident.created_at).toLocaleDateString(),
-      'Active'
-    ]);
+    // Prepare data for tracking sheet (with Date Bucket column)
+    const trackingData = incidentsWithMissingFields.map(incident => {
+      const dateBucket = calculateDateBucket(incident.created_at);
+      
+      return [
+        timestamp,
+        incident.reference,
+        incident.platform,
+        incident.businessUnit,
+        incident.name || incident.summary || '',
+        incident.missingFields.join(', '),
+        incident.url,
+        new Date(incident.created_at).toLocaleDateString(),
+        'Active',
+        dateBucket  // New Date Bucket column
+      ];
+    });
     
     // Add headers if sheet is empty
     if (sheet.getLastRow() === 0) {
@@ -132,7 +137,8 @@ function updateTrackingSheet(incidentsWithMissingFields) {
         'Missing Fields',
         'URL',
         'Created Date',
-        'Status'
+        'Status',
+        'Date Bucket'  // New Date Bucket column
       ];
       sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
       
@@ -158,13 +164,124 @@ function updateTrackingSheet(incidentsWithMissingFields) {
 }
 
 /**
+ * Calculate date bucket for an incident based on creation date
+ */
+function calculateDateBucket(createdAt) {
+  const now = new Date();
+  const createdDate = new Date(createdAt);
+  const daysAgo = Math.floor((now - createdDate) / (1000 * 60 * 60 * 24));
+  
+  if (daysAgo <= 7) {
+    return '0-7 days';
+  } else if (daysAgo <= 30) {
+    return '7-30 days';
+  } else if (daysAgo <= 90) {
+    return '30-90 days';
+  } else {
+    return '90+ days';
+  }
+}
+
+/**
+ * Update summary sheet with incident counts by date bucket
+ */
+function updateSummarySheet(incidentsWithMissingFields) {
+  console.log(`📊 Updating summary sheet with incident statistics...`);
+  
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Summary');
+    
+    if (!sheet) {
+      console.log('⚠️ Summary sheet not found, skipping summary update');
+      return;
+    }
+    
+    // Categorize incidents by date buckets
+    const buckets = {
+      '0-7 days': [],
+      '7-30 days': [],
+      '30-90 days': [],
+      '90+ days': []
+    };
+    
+    const businessUnitsPerBucket = {
+      '0-7 days': new Set(),
+      '7-30 days': new Set(),
+      '30-90 days': new Set(),
+      '90+ days': new Set()
+    };
+    
+    // Categorize incidents
+    incidentsWithMissingFields.forEach(incident => {
+      const bucket = calculateDateBucket(incident.created_at);
+      buckets[bucket].push(incident);
+      businessUnitsPerBucket[bucket].add(incident.businessUnit);
+    });
+    
+    // Prepare summary data
+    const timestamp = new Date().toISOString();
+    const summaryData = [
+      ['0-7 days', buckets['0-7 days'].length, Array.from(businessUnitsPerBucket['0-7 days']).join(','), timestamp],
+      ['7-30 days', buckets['7-30 days'].length, Array.from(businessUnitsPerBucket['7-30 days']).join(','), timestamp],
+      ['30-90 days', buckets['30-90 days'].length, Array.from(businessUnitsPerBucket['30-90 days']).join(','), timestamp],
+      ['90+ days', buckets['90+ days'].length, Array.from(businessUnitsPerBucket['90+ days']).join(','), timestamp]
+    ];
+    
+    // Add headers if sheet is empty
+    if (sheet.getLastRow() === 0) {
+      const headers = [
+        'Date Bucket',
+        'Incident Count',
+        'Business Units Affected',
+        'Last Updated'
+      ];
+      sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+      
+      // Format headers
+      const headerRange = sheet.getRange(1, 1, 1, headers.length);
+      headerRange.setBackground('#4285f4')
+                 .setFontColor('#ffffff')
+                 .setFontWeight('bold')
+                 .setHorizontalAlignment('center');
+    }
+    
+    // Clear existing data (keep headers) and add new summary
+    if (sheet.getLastRow() > 1) {
+      sheet.getRange(2, 1, sheet.getLastRow() - 1, 4).clearContent();
+    }
+    
+    // Add summary data
+    sheet.getRange(2, 1, summaryData.length, summaryData[0].length).setValues(summaryData);
+    
+    // Format the summary data
+    const dataRange = sheet.getRange(2, 1, summaryData.length, summaryData[0].length);
+    dataRange.setHorizontalAlignment('center');
+    
+    // Highlight rows with incidents
+    for (let i = 0; i < summaryData.length; i++) {
+      const rowRange = sheet.getRange(i + 2, 1, 1, 4);
+      if (summaryData[i][1] > 0) { // If incident count > 0
+        rowRange.setBackground('#fff3cd'); // Light yellow for attention
+      } else {
+        rowRange.setBackground('#d4edda'); // Light green for no issues
+      }
+    }
+    
+    console.log(`✅ Summary sheet updated with date bucket statistics`);
+    
+  } catch (error) {
+    console.error('❌ Failed to update summary sheet:', error.toString());
+  }
+}
+
+/**
  * Log execution details
  */
 function logExecution(totalIncidents, incidentsWithMissingFields) {
   console.log(`📊 Logging execution details...`);
   
   try {
-    const sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName('Logs');
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Logs');
     
     if (!sheet) {
       console.log('⚠️ Logs sheet not found, skipping execution logging');
