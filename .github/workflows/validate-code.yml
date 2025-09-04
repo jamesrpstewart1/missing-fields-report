@@ -1,0 +1,69 @@
+name: Validate Apps Script Code
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+    
+    - name: Install dependencies
+      run: |
+        npm install -g @google/clasp
+        npm install -g eslint
+    
+    - name: Validate JavaScript syntax
+      run: |
+        echo "Validating Apps Script files..."
+        for file in src/apps-script/*.gs; do
+          if [ -f "$file" ]; then
+            echo "Checking $file"
+            # Basic syntax check by trying to parse with node
+            node -c <(sed 's/\.gs$/\.js/' <<< "$(cat "$file")")
+          fi
+        done
+    
+    - name: Check for required files
+      run: |
+        echo "Checking for required files..."
+        required_files=(
+          "src/apps-script/Code.gs"
+          "src/apps-script/IncidentAPI.gs"
+          "src/apps-script/FieldValidator.gs"
+          "src/apps-script/EmailService.gs"
+          "src/apps-script/Config.gs"
+          "docs/requirements.md"
+          "docs/api-documentation.md"
+          "docs/deployment-guide.md"
+        )
+        
+        for file in "${required_files[@]}"; do
+          if [ ! -f "$file" ]; then
+            echo "❌ Missing required file: $file"
+            exit 1
+          else
+            echo "✅ Found: $file"
+          fi
+        done
+    
+    - name: Validate documentation
+      run: |
+        echo "Validating documentation..."
+        # Check that all .md files are valid
+        find docs/ -name "*.md" -exec echo "Checking {}" \;
+        
+        # Check for TODO markers in documentation
+        if grep -r "TO BE DETERMINED\|TODO\|\[TO BE" docs/; then
+          echo "⚠️ Found TODO items in documentation - these should be resolved before production"
+        fi

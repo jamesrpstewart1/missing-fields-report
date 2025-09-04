@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background-color: #f5f5f5; 
+            line-height: 1.6;
+        }
+        .container { 
+            max-width: 800px; 
+            margin: 0 auto; 
+            background-color: white; 
+            padding: 20px; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
+        }
+        .header { 
+            background-color: #d73027; 
+            color: white; 
+            padding: 20px; 
+            border-radius: 5px; 
+            margin-bottom: 20px; 
+            text-align: center;
+        }
+        .header h2 { 
+            margin: 0; 
+            font-size: 24px; 
+        }
+        .header p { 
+            margin: 5px 0 0 0; 
+            opacity: 0.9; 
+        }
+        .summary { 
+            background-color: #f8f9fa; 
+            padding: 20px; 
+            border-radius: 5px; 
+            margin-bottom: 20px; 
+            border-left: 4px solid #007bff;
+        }
+        .summary h3 { 
+            margin-top: 0; 
+            color: #495057; 
+        }
+        .incident { 
+            border: 1px solid #dee2e6; 
+            border-radius: 5px; 
+            margin-bottom: 15px; 
+            padding: 20px; 
+            background-color: #ffffff;
+        }
+        .incident:hover { 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1); 
+        }
+        .incident-header { 
+            font-weight: bold; 
+            color: #495057; 
+            margin-bottom: 15px; 
+            font-size: 16px;
+        }
+        .incident-details { 
+            margin-bottom: 15px; 
+        }
+        .incident-details p { 
+            margin: 5px 0; 
+            color: #6c757d; 
+        }
+        .missing-fields { 
+            background-color: #fff3cd; 
+            border: 1px solid #ffeaa7; 
+            border-radius: 4px; 
+            padding: 12px; 
+            margin-top: 15px; 
+        }
+        .missing-fields strong { 
+            color: #856404; 
+        }
+        .field-tag { 
+            background-color: #dc3545; 
+            color: white; 
+            padding: 4px 8px; 
+            border-radius: 4px; 
+            font-size: 12px; 
+            margin-right: 8px; 
+            margin-bottom: 4px;
+            display: inline-block;
+        }
+        .platform-badge { 
+            background-color: #007bff; 
+            color: white; 
+            padding: 4px 12px; 
+            border-radius: 12px; 
+            font-size: 11px; 
+            font-weight: bold;
+        }
+        .firehydrant-badge { 
+            background-color: #28a745; 
+        }
+        .footer { 
+            margin-top: 30px; 
+            padding-top: 20px; 
+            border-top: 1px solid #dee2e6; 
+            font-size: 14px; 
+            color: #6c757d; 
+        }
+        .footer ul { 
+            padding-left: 20px; 
+        }
+        .footer li { 
+            margin-bottom: 8px; 
+        }
+        a { 
+            color: #007bff; 
+            text-decoration: none; 
+            font-weight: bold;
+        }
+        a:hover { 
+            text-decoration: underline; 
+        }
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 15px; 
+        }
+        th, td { 
+            padding: 12px; 
+            text-align: left; 
+            border-bottom: 1px solid #dee2e6; 
+        }
+        th { 
+            background-color: #f8f9fa; 
+            font-weight: bold; 
+            color: #495057;
+        }
+        .stats-grid { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 15px; 
+            margin-top: 15px; 
+        }
+        .stat-card { 
+            background-color: white; 
+            border: 1px solid #dee2e6; 
+            border-radius: 4px; 
+            padding: 15px; 
+            text-align: center; 
+        }
+        .stat-number { 
+            font-size: 24px; 
+            font-weight: bold; 
+            color: #dc3545; 
+        }
+        .stat-label { 
+            font-size: 12px; 
+            color: #6c757d; 
+            text-transform: uppercase; 
+            margin-top: 5px; 
+        }
+        .test-banner { 
+            background-color: #d4edda; 
+            border: 1px solid #c3e6cb; 
+            border-radius: 5px; 
+            padding: 15px; 
+            margin-bottom: 20px; 
+            text-align: center;
+        }
+        .test-banner h3 { 
+            color: #155724; 
+            margin-top: 0; 
+        }
+        .test-banner p { 
+            color: #155724; 
+            margin-bottom: 0; 
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h2>🔍 Missing Fields Report{{TEST_INDICATOR}}</h2>
+            <p>Generated on {{CURRENT_DATE}} at {{CURRENT_TIME}}</p>
+        </div>
+
+        <!-- Test Banner (if applicable) -->
+        {{TEST_BANNER}}
+
+        <!-- Summary Section -->
+        <div class="summary">
+            <h3>📊 Executive Summary</h3>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number">{{TOTAL_INCIDENTS}}</div>
+                    <div class="stat-label">Incidents Need Attention</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">{{TOTAL_MISSING_FIELDS}}</div>
+                    <div class="stat-label">Total Missing Fields</div>
+                </div>
+            </div>
+            
+            <table>
+                <tr><th>Missing Field Breakdown</th><td>{{FIELD_BREAKDOWN}}</td></tr>
+                <tr><th>Platform Distribution</th><td>{{PLATFORM_BREAKDOWN}}</td></tr>
+                <tr><th>Business Unit Distribution</th><td>{{BUSINESS_UNIT_BREAKDOWN}}</td></tr>
+            </table>
+        </div>
+
+        <!-- Incidents Section -->
+        <h3>📋 Incidents Requiring Immediate Attention</h3>
+        <p style="color: #6c757d; margin-bottom: 20px;">
+            The following incidents are missing required fields. Click on incident references to open them directly and update the missing information.
+        </p>
+
+        {{INCIDENTS_LIST}}
+
+        <!-- Footer -->
+        <div class="footer">
+            <h4>📝 Next Steps</h4>
+            <ul>
+                <li><strong>Review each incident:</strong> Click on incident references to open them directly in your incident management platform</li>
+                <li><strong>Update missing fields:</strong> Add the required information for Affected Markets, Causal Type, and Stabilization Type</li>
+                <li><strong>Track progress:</strong> Incidents will automatically be removed from future reports once all required fields are completed</li>
+                <li><strong>Escalate if needed:</strong> Contact incident owners or team leads for incidents that remain incomplete</li>
+            </ul>
+            
+            <hr style="margin: 20px 0; border: none; border-top: 1px solid #dee2e6;">
+            
+            <p><strong>About this report:</strong></p>
+            <p>This is an automated daily report from the Missing Fields Report system. The system monitors incidents across incident.io (Square/Cash) and FireHydrant (Afterpay) platforms to ensure all required fields are properly documented for compliance and analysis purposes.</p>
+            
+            <p><strong>Questions or issues?</strong> Contact the Platform Engineering team or check the system documentation.</p>
+        </div>
+    </div>
+</body>
+</html>
