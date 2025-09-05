@@ -4,7 +4,7 @@
  */
 
 /**
- * Validate required fields for all incidents
+ * Validate required fields for all incidents (platform-specific)
  */
 function validateRequiredFields(incidents) {
   console.log(`🔍 Validating required fields for ${incidents.length} incidents...`);
@@ -14,8 +14,11 @@ function validateRequiredFields(incidents) {
   incidents.forEach(incident => {
     const missingFields = [];
     
-    // Check each required field
-    REQUIRED_FIELDS.forEach(fieldName => {
+    // Get platform-specific required fields
+    const requiredFields = getPlatformRequiredFields(incident.platform);
+    
+    // Check each required field for this platform
+    requiredFields.forEach(fieldName => {
       if (!hasRequiredField(incident, fieldName)) {
         missingFields.push(fieldName);
       }
@@ -31,6 +34,20 @@ function validateRequiredFields(incidents) {
   
   console.log(`⚠️ Found ${incidentsWithMissingFields.length} incidents with missing fields`);
   return incidentsWithMissingFields;
+}
+
+/**
+ * Get required fields for a specific platform
+ */
+function getPlatformRequiredFields(platform) {
+  if (platform === 'incident.io') {
+    return ['Affected Markets', 'Causal Type', 'Stabilization Type'];
+  } else if (platform === 'firehydrant') {
+    return ['Market']; // Only Market field for FireHydrant/Afterpay
+  }
+  
+  // Default fallback
+  return REQUIRED_FIELDS;
 }
 
 /**
@@ -79,11 +96,11 @@ function getIncidentIOFieldValue(incident, fieldName) {
  * Get field value from FireHydrant incident with field name mapping
  */
 function getFireHydrantFieldValueMapped(incident, fieldName) {
-  // Map required field names to FireHydrant label keys
+  // Map required field names to FireHydrant custom field keys
   const fieldMapping = {
-    'Affected Markets': ['affected_markets', 'markets_affected', 'impacted_markets'],
-    'Causal Type': ['causal_type', 'root_cause_type'],
-    'Stabilization Type': ['stabilization_type', 'resolution_type']
+    'Market': ['market', 'Market', 'markets', 'Markets'], // FireHydrant uses "Market" not "Affected Markets"
+    'Causal Type': ['causal_type', 'root_cause_type'], // Not used yet in FireHydrant
+    'Stabilization Type': ['stabilization_type', 'resolution_type'] // Not used yet in FireHydrant
   };
   
   const possibleFieldNames = fieldMapping[fieldName] || [fieldName.toLowerCase().replace(/\s+/g, '_')];

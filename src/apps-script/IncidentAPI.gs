@@ -67,7 +67,7 @@ function fetchIncidentsFromIncidentIO(businessUnit, config) {
       const enrichedIncidents = data.incidents.map(incident => ({
         ...incident,
         platform: 'incident.io',
-        businessUnit: businessUnit,
+        businessUnit: capitalizeBusinessUnit(businessUnit),
         url: incident.permalink || `https://app.incident.io/incidents/${incident.id}`
       }));
       
@@ -153,7 +153,7 @@ function fetchIncidentsFromFireHydrant(businessUnit, config) {
         .map(incident => ({
           ...incident,
           platform: 'firehydrant',
-          businessUnit: businessUnit,
+          businessUnit: capitalizeBusinessUnit(businessUnit),
           url: incident.incident_url || `https://app.firehydrant.io/incidents/${incident.id}`
         }));
       
@@ -219,6 +219,19 @@ function getFireHydrantFieldValue(incident, fieldName) {
   }
   
   return [''];
+}
+
+/**
+ * Capitalize business unit names for display
+ */
+function capitalizeBusinessUnit(businessUnit) {
+  const mapping = {
+    'square': 'Square',
+    'cash': 'Cash',
+    'afterpay': 'Afterpay'
+  };
+  
+  return mapping[businessUnit.toLowerCase()] || businessUnit.charAt(0).toUpperCase() + businessUnit.slice(1).toLowerCase();
 }
 
 /**
