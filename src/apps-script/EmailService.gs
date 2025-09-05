@@ -169,7 +169,10 @@ function generateEmailContent(incidentsWithMissingFields, summary, isTest = fals
         .incident-header { font-weight: bold; color: #495057; margin-bottom: 10px; }
         .missing-fields { background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 3px; padding: 8px; margin-top: 10px; }
         .field-tag { background-color: #dc3545; color: white; padding: 2px 6px; border-radius: 3px; font-size: 12px; margin-right: 5px; }
-        .platform-badge { background-color: #007bff; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; }
+        .platform-badge { padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; }
+        .badge-square { background-color: #000000; color: white; }
+        .badge-cash { background-color: #28a745; color: white; }
+        .badge-afterpay { background-color: #007bff; color: white; }
         .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #dee2e6; font-size: 12px; color: #6c757d; }
         a { color: #007bff; text-decoration: none; }
         a:hover { text-decoration: underline; }
@@ -303,7 +306,10 @@ function generateTieredEmailContent(buckets, summary) {
         .incident-header { font-weight: bold; color: #495057; margin-bottom: 10px; }
         .missing-fields { background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 3px; padding: 8px; margin-top: 10px; }
         .field-tag { background-color: #dc3545; color: white; padding: 2px 6px; border-radius: 3px; font-size: 12px; margin-right: 5px; }
-        .platform-badge { background-color: #007bff; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; }
+        .platform-badge { padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; }
+        .badge-square { background-color: #000000; color: white; }
+        .badge-cash { background-color: #28a745; color: white; }
+        .badge-afterpay { background-color: #007bff; color: white; }
         .bucket-count { background-color: #6c757d; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px; margin-right: 10px; }
         .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #dee2e6; font-size: 12px; color: #6c757d; }
         a { color: #007bff; text-decoration: none; }
@@ -321,10 +327,29 @@ function generateTieredEmailContent(buckets, summary) {
         </div>
 
         <div class="summary">
-            <h3>📊 Executive Summary</h3>
+            <h3>📊 Summary</h3>
             <table>
                 <tr><th>Recent Incidents (Last ${INCIDENT_FILTERING.dateRanges.emailFocus} Days)</th><td><strong>${buckets.emailFocus.length}</strong></td></tr>
-                <tr><th>Total Incidents Tracked</th><td><strong>${summary.totalIncidents}</strong></td></tr>
+                <tr><th>Total Incidents Tracked</th><td><strong>${summary.totalIncidents}</strong></td></tr>`;
+  
+  // Add business unit breakdown for recent incidents
+  if (buckets.emailFocus.length > 0) {
+    const recentBusinessUnits = {};
+    buckets.emailFocus.forEach(incident => {
+      const bu = incident.businessUnit;
+      recentBusinessUnits[bu] = (recentBusinessUnits[bu] || 0) + 1;
+    });
+    
+    html += `<tr><th>Recent by Business Unit</th><td>`;
+    Object.entries(recentBusinessUnits).forEach(([bu, count]) => {
+      const badgeClass = bu.toLowerCase() === 'square' ? 'badge-square' : 
+                        bu.toLowerCase() === 'cash' ? 'badge-cash' : 'badge-afterpay';
+      html += `<span class="platform-badge ${badgeClass}">${bu}: ${count}</span> `;
+    });
+    html += `</td></tr>`;
+  }
+  
+  html += `
             </table>
         </div>
 `;
@@ -354,12 +379,14 @@ function generateTieredEmailContent(buckets, summary) {
     buckets.emailFocus.forEach(incident => {
       const createdDate = new Date(incident.created_at).toLocaleDateString();
       const platformBadge = incident.platform === 'incident.io' ? 'incident.io' : 'FireHydrant';
+      const badgeClass = incident.businessUnit.toLowerCase() === 'square' ? 'badge-square' : 
+                        incident.businessUnit.toLowerCase() === 'cash' ? 'badge-cash' : 'badge-afterpay';
       
       html += `
         <div class="incident">
             <div class="incident-header">
                 <a href="${incident.url}" target="_blank">${incident.reference}</a>
-                <span class="platform-badge">${platformBadge} - ${incident.businessUnit}</span>
+                <span class="platform-badge ${badgeClass}">${platformBadge} - ${incident.businessUnit}</span>
             </div>
             <p><strong>Summary:</strong> ${incident.name || incident.summary || 'No summary available'}</p>
             <p><strong>Created:</strong> ${createdDate}</p>
