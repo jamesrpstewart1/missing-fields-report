@@ -415,10 +415,9 @@ function generateTieredEmailContent(buckets, summary) {
                 <li><strong>Immediate Action:</strong> Focus on the recent incidents listed above</li>
                 <li><strong>Click incident references</strong> to open them directly and update missing fields</li>
                 <li><strong>Complete Report:</strong> Check the Google Sheets report for all incidents and historical tracking</li>
-                <li><strong>Trend Monitoring:</strong> Older incidents show the improvement trend as this process matures</li>
             </ul>
             <hr>
-            <p>This automated report focuses on recent incidents for immediate action. The complete tracking data is maintained in Google Sheets for comprehensive analysis and trend monitoring.</p>
+            <p>This automated report focuses on recent incidents for immediate action. The complete tracking data is maintained in Google Sheets for comprehensive analysis.</p>
         </div>
     </div>
 </body>
@@ -476,7 +475,7 @@ function generateTieredPlainTextContent(buckets, summary) {
   text += `NEXT STEPS:\n`;
   text += `- Focus on recent incidents listed above for immediate action\n`;
   text += `- Open incident URLs to update missing fields\n`;
-  text += `- Check Google Sheets report for complete tracking and trends\n\n`;
+  text += `- Check Google Sheets report for complete tracking\n\n`;
   text += `This automated report focuses on recent incidents. Complete data is in Google Sheets.\n`;
   
   return text;
