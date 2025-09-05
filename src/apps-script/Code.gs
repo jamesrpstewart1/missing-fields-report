@@ -59,13 +59,13 @@ const INCIDENT_FILTERING = {
   // EXCLUDE these incident types (common across platforms)
   excludeTypes: ['[TEST]', '[Preemptive SEV]'],
   
-  // Multi-tiered date ranges
+  // Multi-tiered date ranges - Updated to match Summary sheet buckets exactly
   dateRanges: {
-    emailFocus: 7,      // Email shows detailed list for last 7 days
+    emailFocus: 7,      // Email shows detailed list for last 7 days (0-7 days)
     bucket1: 30,        // 7-30 days bucket
-    bucket2: 60,        // 30-60 days bucket  
-    bucket3: 90,        // 60-90 days bucket
-    maxLookback: 365    // Total lookback period (12 months) - incidents 90+ days go in final bucket
+    bucket2: 90,        // 30-90 days bucket  
+    bucket3: 365,       // 90+ days bucket (up to maxLookback)
+    maxLookback: 365    // Total lookback period (12 months)
   }
 };
 
