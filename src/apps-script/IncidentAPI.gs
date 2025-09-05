@@ -154,6 +154,7 @@ function fetchIncidentsFromFireHydrant(businessUnit, config) {
           ...incident,
           platform: 'firehydrant',
           businessUnit: capitalizeBusinessUnit(businessUnit),
+          reference: getFireHydrantReference(incident),
           url: incident.incident_url || `https://app.firehydrant.io/incidents/${incident.id}`
         }));
       
@@ -222,6 +223,29 @@ function getFireHydrantFieldValue(incident, fieldName) {
 }
 
 /**
+ * Get FireHydrant incident reference in format #1721
+ */
+function getFireHydrantReference(incident) {
+  // FireHydrant uses 'number' field for human-readable incident numbers (e.g., 1721)
+  // The 'id' field is a UUID which we don't want to display
+  if (incident.number) {
+    return `#${incident.number}`;
+  } else if (incident.incident_number) {
+    return `#${incident.incident_number}`;
+  } else if (incident.display_id) {
+    return `#${incident.display_id}`;
+  }
+  
+  // Fallback - use a short version of the UUID if no human-readable number exists
+  if (incident.id) {
+    const shortId = incident.id.split('-')[0]; // Use first part of UUID
+    return `FH-${shortId}`;
+  }
+  
+  return 'FH-Unknown';
+}
+
+/**
  * Capitalize business unit names for display
  */
 function capitalizeBusinessUnit(businessUnit) {
@@ -232,6 +256,35 @@ function capitalizeBusinessUnit(businessUnit) {
   };
   
   return mapping[businessUnit.toLowerCase()] || businessUnit.charAt(0).toUpperCase() + businessUnit.slice(1).toLowerCase();
+}
+
+/**
+ * Debug function to log incident fields (helps find Slack link field names)
+ */
+function debugIncidentFields() {
+  console.log('🔍 Debug: Fetching sample incidents to find Slack link fields...');
+  
+  try {
+    const config = getConfiguration();
+    
+    // Get a few sample incidents from each platform
+    console.log('--- incident.io Sample ---');
+    const squareIncidents = fetchIncidentsFromIncidentIO('square', config);
+    if (squareIncidents.length > 0) {
+      console.log('Sample incident.io incident fields:');
+      console.log(JSON.stringify(squareIncidents[0], null, 2));
+    }
+    
+    console.log('--- FireHydrant Sample ---');
+    const afterpayIncidents = fetchIncidentsFromFireHydrant('afterpay', config);
+    if (afterpayIncidents.length > 0) {
+      console.log('Sample FireHydrant incident fields:');
+      console.log(JSON.stringify(afterpayIncidents[0], null, 2));
+    }
+    
+  } catch (error) {
+    console.error('Debug failed:', error.toString());
+  }
 }
 
 /**
