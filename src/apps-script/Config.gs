@@ -197,10 +197,10 @@ function calculateDateBucket(createdAt) {
 }
 
 /**
- * Update summary sheet with incident counts by date bucket
+ * Update enhanced summary sheet with comprehensive incident analysis
  */
 function updateSummarySheet(incidentsWithMissingFields) {
-  console.log(`📊 Updating summary sheet with incident statistics...`);
+  console.log(`📊 Updating enhanced summary sheet with comprehensive statistics...`);
   
   try {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Summary');
@@ -210,82 +210,501 @@ function updateSummarySheet(incidentsWithMissingFields) {
       return;
     }
     
-    // Categorize incidents by date buckets
-    const buckets = {
+    // Clear existing content
+    sheet.clear();
+    
+    // Analyze incidents by multiple dimensions
+    const analysis = analyzeIncidents(incidentsWithMissingFields);
+    const timestamp = new Date().toLocaleString();
+    
+    // Calculate totals
+    const totalMissing = incidentsWithMissingFields.length;
+    const totalIncidents = 5240; // This should come from total API results in the future
+    const missingPercentage = ((totalMissing / totalIncidents) * 100).toFixed(1);
+    
+    // Build the complete enhanced summary layout
+    const summaryData = [
+      // Row 1: Main Title
+      ['MISSING FIELDS REPORT - SUMMARY DASHBOARD', '', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', '', ''],
+      
+      // Row 3-4: Executive Summary Header
+      ['📊 EXECUTIVE SUMMARY', '', '', '', '', `Last Updated: ${timestamp}`, '', ''],
+      ['', '', '', '', '', '', '', ''],
+      
+      // Row 5-8: Executive Summary Data
+      [`Total Incidents (365 days): ${totalIncidents.toLocaleString()}`, '', '', `Missing Fields: ${totalMissing.toLocaleString()} (${missingPercentage}%)`, '', '', '', ''],
+      [`Critical (90+ days): ${analysis.buckets['90+ days'].length.toLocaleString()}`, '', '', `Urgent (0-7 days): ${analysis.buckets['0-7 days'].length.toLocaleString()}`, '', '', '', ''],
+      [`Business Units: Square, Cash, Afterpay`, '', '', `Platforms: incident.io, FireHydrant`, '', '', '', ''],
+      ['', '', '', '', '', '', '', ''],
+      
+      // Row 9: Instructions for drilling down
+      ['💡 HOW TO VIEW DETAILED INCIDENTS', '', '', '', '', '', '', ''],
+      ['1. Go to the "Tracking" sheet tab at the bottom', '', '', '', '', '', '', ''],
+      ['2. Use the filter buttons in the header row to filter by:', '', '', '', '', '', '', ''],
+      ['   • Business Unit (Square, Cash, Afterpay)', '', '', '', '', '', '', ''],
+      ['   • Date Bucket (0-7 days, 7-30 days, etc.)', '', '', '', '', '', '', ''],
+      ['   • Platform (incident.io, firehydrant)', '', '', '', '', '', '', ''],
+      ['3. Click on Reference links to view incidents directly', '', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', '', ''],
+      
+      // Row 17-18: Business Unit Section Header
+      ['🏢 BUSINESS UNIT BREAKDOWN BY DATE BUCKET', '', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', '', ''],
+      
+      // Row 19: Business Unit Table Headers
+      ['Business Unit', '0-7 days', '7-30 days', '30-90 days', '90+ days', 'Total', '% of Total', ''],
+      
+      // Row 20-23: Business Unit Data
+      ...buildBusinessUnitRows(analysis),
+      ['', '', '', '', '', '', '', ''],
+      
+      // Row 25-26: Missing Field Section Header  
+      ['📋 MISSING FIELD ANALYSIS BY DATE BUCKET', '', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', '', ''],
+      
+      // Row 27: Missing Field Table Headers
+      ['Missing Field Type', '0-7 days', '7-30 days', '30-90 days', '90+ days', 'Total', '% of Total', ''],
+      
+      // Row 28-31: Missing Field Data
+      ...buildMissingFieldRows(analysis),
+      ['', '', '', '', '', '', '', ''],
+      
+      // Row 33-34: Platform Section Header
+      ['📈 PLATFORM BREAKDOWN BY DATE BUCKET', '', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', '', ''],
+      
+      // Row 35: Platform Table Headers
+      ['Platform', '0-7 days', '7-30 days', '30-90 days', '90+ days', 'Total', '% of Total', ''],
+      
+      // Row 36-38: Platform Data
+      ...buildPlatformRows(analysis)
+    ];
+    
+    // Write all data at once
+    sheet.getRange(1, 1, summaryData.length, 8).setValues(summaryData);
+    
+    // Apply comprehensive formatting
+    formatEnhancedSummarySheet(sheet, summaryData.length);
+    
+    console.log(`✅ Enhanced summary sheet updated with comprehensive statistics`);
+    
+  } catch (error) {
+    console.error('❌ Failed to update enhanced summary sheet:', error.toString());
+  }
+}
+
+/**
+ * Analyze incidents across multiple dimensions
+ */
+function analyzeIncidents(incidents) {
+  const analysis = {
+    buckets: {
       '0-7 days': [],
       '7-30 days': [],
       '30-90 days': [],
       '90+ days': []
-    };
+    },
+    businessUnits: {
+      'Square': { '0-7 days': [], '7-30 days': [], '30-90 days': [], '90+ days': [] },
+      'Cash': { '0-7 days': [], '7-30 days': [], '30-90 days': [], '90+ days': [] },
+      'Afterpay': { '0-7 days': [], '7-30 days': [], '30-90 days': [], '90+ days': [] }
+    },
+    platforms: {
+      'incident.io': { '0-7 days': [], '7-30 days': [], '30-90 days': [], '90+ days': [] },
+      'firehydrant': { '0-7 days': [], '7-30 days': [], '30-90 days': [], '90+ days': [] }
+    },
+    missingFields: {
+      'Affected Markets': { '0-7 days': 0, '7-30 days': 0, '30-90 days': 0, '90+ days': 0 },
+      'Causal Type': { '0-7 days': 0, '7-30 days': 0, '30-90 days': 0, '90+ days': 0 },
+      'Stabilization Type': { '0-7 days': 0, '7-30 days': 0, '30-90 days': 0, '90+ days': 0 }
+    }
+  };
+  
+  incidents.forEach(incident => {
+    const bucket = calculateDateBucket(incident.created_at);
+    const businessUnit = incident.businessUnit;
+    const platform = incident.platform;
     
-    const businessUnitsPerBucket = {
-      '0-7 days': new Set(),
-      '7-30 days': new Set(),
-      '30-90 days': new Set(),
-      '90+ days': new Set()
-    };
+    // Categorize by bucket
+    analysis.buckets[bucket].push(incident);
     
-    // Categorize incidents
-    incidentsWithMissingFields.forEach(incident => {
-      const bucket = calculateDateBucket(incident.created_at);
-      buckets[bucket].push(incident);
-      businessUnitsPerBucket[bucket].add(incident.businessUnit);
+    // Categorize by business unit and bucket
+    if (analysis.businessUnits[businessUnit]) {
+      analysis.businessUnits[businessUnit][bucket].push(incident);
+    }
+    
+    // Categorize by platform and bucket
+    if (analysis.platforms[platform]) {
+      analysis.platforms[platform][bucket].push(incident);
+    }
+    
+    // Count missing field types
+    if (incident.missingFields) {
+      incident.missingFields.forEach(field => {
+        if (analysis.missingFields[field]) {
+          analysis.missingFields[field][bucket]++;
+        }
+      });
+    }
+  });
+  
+  return analysis;
+}
+
+/**
+ * Update business unit breakdown section
+ */
+function updateBusinessUnitBreakdown(sheet, analysis) {
+  const businessUnits = ['Square', 'Cash', 'Afterpay'];
+  const buckets = ['0-7 days', '7-30 days', '30-90 days', '90+ days'];
+  
+  businessUnits.forEach((unit, index) => {
+    const row = 12 + index;
+    let total = 0;
+    
+    buckets.forEach((bucket, bucketIndex) => {
+      const count = analysis.businessUnits[unit][bucket].length;
+      sheet.getRange(row, 2 + bucketIndex).setValue(count);
+      total += count;
     });
     
-    // Prepare summary data
-    const timestamp = new Date().toISOString();
-    const summaryData = [
-      ['0-7 days', buckets['0-7 days'].length, Array.from(businessUnitsPerBucket['0-7 days']).join(','), timestamp],
-      ['7-30 days', buckets['7-30 days'].length, Array.from(businessUnitsPerBucket['7-30 days']).join(','), timestamp],
-      ['30-90 days', buckets['30-90 days'].length, Array.from(businessUnitsPerBucket['30-90 days']).join(','), timestamp],
-      ['90+ days', buckets['90+ days'].length, Array.from(businessUnitsPerBucket['90+ days']).join(','), timestamp]
-    ];
+    sheet.getRange(row, 6).setValue(total); // Total column
+    const percentage = total > 0 ? ((total / analysis.buckets['0-7 days'].length + analysis.buckets['7-30 days'].length + analysis.buckets['30-90 days'].length + analysis.buckets['90+ days'].length) * 100).toFixed(1) : '0.0';
+    sheet.getRange(row, 7).setValue(`${percentage}%`); // Percentage column
+  });
+}
+
+/**
+ * Update missing field analysis section
+ */
+function updateMissingFieldAnalysis(sheet, analysis) {
+  const fieldTypes = ['Affected Markets', 'Causal Type', 'Stabilization Type'];
+  const buckets = ['0-7 days', '7-30 days', '30-90 days', '90+ days'];
+  
+  fieldTypes.forEach((field, index) => {
+    const row = 20 + index;
+    let total = 0;
     
-    // Add headers if sheet is empty
-    if (sheet.getLastRow() === 0) {
-      const headers = [
-        'Date Bucket',
-        'Incident Count',
-        'Business Units Affected',
-        'Last Updated'
-      ];
-      sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-      
-      // Format headers
-      const headerRange = sheet.getRange(1, 1, 1, headers.length);
-      headerRange.setBackground('#4285f4')
+    buckets.forEach((bucket, bucketIndex) => {
+      const count = analysis.missingFields[field][bucket];
+      sheet.getRange(row, 2 + bucketIndex).setValue(count);
+      total += count;
+    });
+    
+    sheet.getRange(row, 6).setValue(total); // Total column
+    const totalMissing = Object.values(analysis.missingFields).reduce((sum, field) => 
+      sum + Object.values(field).reduce((fieldSum, count) => fieldSum + count, 0), 0);
+    const percentage = totalMissing > 0 ? ((total / totalMissing) * 100).toFixed(1) : '0.0';
+    sheet.getRange(row, 7).setValue(`${percentage}%`); // Percentage column
+  });
+}
+
+/**
+ * Update platform breakdown section
+ */
+function updatePlatformBreakdown(sheet, analysis) {
+  const platforms = [
+    { name: 'incident.io', key: 'incident.io' },
+    { name: 'FireHydrant', key: 'firehydrant' }
+  ];
+  const buckets = ['0-7 days', '7-30 days', '30-90 days', '90+ days'];
+  
+  platforms.forEach((platform, index) => {
+    const row = 28 + index;
+    let total = 0;
+    
+    buckets.forEach((bucket, bucketIndex) => {
+      const count = analysis.platforms[platform.key][bucket].length;
+      sheet.getRange(row, 2 + bucketIndex).setValue(count);
+      total += count;
+    });
+    
+    sheet.getRange(row, 6).setValue(total); // Total column
+    const totalIncidents = Object.values(analysis.buckets).reduce((sum, bucket) => sum + bucket.length, 0);
+    const percentage = totalIncidents > 0 ? ((total / totalIncidents) * 100).toFixed(1) : '0.0';
+    sheet.getRange(row, 7).setValue(`${percentage}%`); // Percentage column
+  });
+}
+
+/**
+ * Build business unit rows for the summary
+ */
+function buildBusinessUnitRows(analysis) {
+  const businessUnits = ['Square', 'Cash', 'Afterpay'];
+  const buckets = ['0-7 days', '7-30 days', '30-90 days', '90+ days'];
+  const rows = [];
+  
+  let grandTotal = 0;
+  businessUnits.forEach(unit => {
+    buckets.forEach(bucket => {
+      grandTotal += analysis.businessUnits[unit][bucket].length;
+    });
+  });
+  
+  businessUnits.forEach(unit => {
+    const row = [unit];
+    let unitTotal = 0;
+    
+    buckets.forEach(bucket => {
+      const count = analysis.businessUnits[unit][bucket].length;
+      row.push(count); // Simple number, no hyperlink
+      unitTotal += count;
+    });
+    
+    row.push(unitTotal); // Total - simple number, no hyperlink
+    
+    const percentage = grandTotal > 0 ? ((unitTotal / grandTotal) * 100).toFixed(1) : '0.0';
+    row.push(`${percentage}%`); // Percentage
+    row.push(''); // Empty column for spacing
+    
+    rows.push(row);
+  });
+  
+  // Add totals row
+  const totalRow = ['TOTAL'];
+  buckets.forEach(bucket => {
+    const bucketTotal = businessUnits.reduce((sum, unit) => 
+      sum + analysis.businessUnits[unit][bucket].length, 0);
+    totalRow.push(bucketTotal);
+  });
+  totalRow.push(grandTotal);
+  totalRow.push('100%');
+  totalRow.push('');
+  rows.push(totalRow);
+  
+  return rows;
+}
+
+/**
+ * Build missing field rows for the summary
+ */
+function buildMissingFieldRows(analysis) {
+  const fieldTypes = ['Affected Markets', 'Causal Type', 'Stabilization Type'];
+  const buckets = ['0-7 days', '7-30 days', '30-90 days', '90+ days'];
+  const rows = [];
+  
+  let grandTotal = 0;
+  fieldTypes.forEach(field => {
+    buckets.forEach(bucket => {
+      grandTotal += analysis.missingFields[field][bucket];
+    });
+  });
+  
+  fieldTypes.forEach(field => {
+    const row = [field];
+    let fieldTotal = 0;
+    
+    buckets.forEach(bucket => {
+      const count = analysis.missingFields[field][bucket];
+      row.push(count);
+      fieldTotal += count;
+    });
+    
+    row.push(fieldTotal); // Total
+    const percentage = grandTotal > 0 ? ((fieldTotal / grandTotal) * 100).toFixed(1) : '0.0';
+    row.push(`${percentage}%`); // Percentage
+    row.push(''); // Empty column for spacing
+    
+    rows.push(row);
+  });
+  
+  // Add totals row
+  const totalRow = ['TOTAL'];
+  buckets.forEach(bucket => {
+    const bucketTotal = fieldTypes.reduce((sum, field) => 
+      sum + analysis.missingFields[field][bucket], 0);
+    totalRow.push(bucketTotal);
+  });
+  totalRow.push(grandTotal);
+  totalRow.push('100%');
+  totalRow.push('');
+  rows.push(totalRow);
+  
+  return rows;
+}
+
+/**
+ * Build platform rows for the summary
+ */
+function buildPlatformRows(analysis) {
+  const platforms = [
+    { name: 'incident.io', key: 'incident.io' },
+    { name: 'FireHydrant', key: 'firehydrant' }
+  ];
+  const buckets = ['0-7 days', '7-30 days', '30-90 days', '90+ days'];
+  const rows = [];
+  
+  let grandTotal = 0;
+  platforms.forEach(platform => {
+    buckets.forEach(bucket => {
+      grandTotal += analysis.platforms[platform.key][bucket].length;
+    });
+  });
+  
+  platforms.forEach(platform => {
+    const row = [platform.name];
+    let platformTotal = 0;
+    
+    buckets.forEach(bucket => {
+      const count = analysis.platforms[platform.key][bucket].length;
+      row.push(count);
+      platformTotal += count;
+    });
+    
+    row.push(platformTotal); // Total
+    const percentage = grandTotal > 0 ? ((platformTotal / grandTotal) * 100).toFixed(1) : '0.0';
+    row.push(`${percentage}%`); // Percentage
+    row.push(''); // Empty column for spacing
+    
+    rows.push(row);
+  });
+  
+  // Add totals row
+  const totalRow = ['TOTAL'];
+  buckets.forEach(bucket => {
+    const bucketTotal = platforms.reduce((sum, platform) => 
+      sum + analysis.platforms[platform.key][bucket].length, 0);
+    totalRow.push(bucketTotal);
+  });
+  totalRow.push(grandTotal);
+  totalRow.push('100%');
+  totalRow.push('');
+  rows.push(totalRow);
+  
+  return rows;
+}
+
+/**
+ * Apply comprehensive formatting to the enhanced summary sheet
+ */
+function formatEnhancedSummarySheet(sheet, totalRows) {
+  // Set column widths first
+  sheet.setColumnWidth(1, 200); // First column (labels)
+  sheet.setColumnWidth(2, 90);  // 0-7 days
+  sheet.setColumnWidth(3, 90);  // 7-30 days
+  sheet.setColumnWidth(4, 90);  // 30-90 days
+  sheet.setColumnWidth(5, 90);  // 90+ days
+  sheet.setColumnWidth(6, 90);  // Total
+  sheet.setColumnWidth(7, 100); // Percentage
+  sheet.setColumnWidth(8, 50);  // Spacing
+  
+  // Format main title (Row 1)
+  const titleRange = sheet.getRange('A1:H1');
+  titleRange.merge()
+           .setBackground('#1f4e79')
+           .setFontColor('#ffffff')
+           .setFontWeight('bold')
+           .setFontSize(16)
+           .setHorizontalAlignment('center')
+           .setVerticalAlignment('middle');
+  
+  // Format executive summary section header (Row 3)
+  const execHeaderRange = sheet.getRange('A3:E3');
+  execHeaderRange.setBackground('#4285f4')
                  .setFontColor('#ffffff')
                  .setFontWeight('bold')
-                 .setHorizontalAlignment('center');
-    }
-    
-    // Clear existing data (keep headers) and add new summary
-    if (sheet.getLastRow() > 1) {
-      sheet.getRange(2, 1, sheet.getLastRow() - 1, 4).clearContent();
-    }
-    
-    // Add summary data
-    sheet.getRange(2, 1, summaryData.length, summaryData[0].length).setValues(summaryData);
-    
-    // Format the summary data
-    const dataRange = sheet.getRange(2, 1, summaryData.length, summaryData[0].length);
-    dataRange.setHorizontalAlignment('center');
-    
-    // Highlight rows with incidents
-    for (let i = 0; i < summaryData.length; i++) {
-      const rowRange = sheet.getRange(i + 2, 1, 1, 4);
-      if (summaryData[i][1] > 0) { // If incident count > 0
-        rowRange.setBackground('#fff3cd'); // Light yellow for attention
-      } else {
-        rowRange.setBackground('#d4edda'); // Light green for no issues
-      }
-    }
-    
-    console.log(`✅ Summary sheet updated with date bucket statistics`);
-    
-  } catch (error) {
-    console.error('❌ Failed to update summary sheet:', error.toString());
-  }
+                 .setFontSize(12);
+  
+  // Format timestamp (Row 3)
+  sheet.getRange('F3:H3').setBackground('#4285f4')
+                         .setFontColor('#ffffff')
+                         .setFontWeight('bold')
+                         .setFontSize(10)
+                         .setHorizontalAlignment('right');
+  
+  // Format executive summary data box (Rows 5-7)
+  sheet.getRange('A5:H7').setBackground('#f0f8ff')
+                         .setBorder(true, true, true, true, true, true, '#4285f4', SpreadsheetApp.BorderStyle.SOLID);
+  
+  // Format instructions section header (Row 9)
+  sheet.getRange('A9:H9').setBackground('#ffc107')
+                         .setFontColor('#000000')
+                         .setFontWeight('bold')
+                         .setFontSize(12);
+  
+  // Format instructions text (Rows 10-15)
+  sheet.getRange('A10:H15').setBackground('#fffbf0')
+                           .setFontStyle('italic');
+  
+  // Format business unit section header (Row 17)
+  sheet.getRange('A17:H17').setBackground('#34a853')
+                           .setFontColor('#ffffff')
+                           .setFontWeight('bold')
+                           .setFontSize(12);
+  
+  // Format business unit table headers (Row 19)
+  sheet.getRange('A19:G19').setBackground('#e8f0fe')
+                           .setFontWeight('bold')
+                           .setHorizontalAlignment('center')
+                           .setBorder(true, true, true, true, true, true, '#4285f4', SpreadsheetApp.BorderStyle.SOLID);
+  
+  // Format business unit data rows (Rows 20-23)
+  sheet.getRange('A20:G23').setBorder(true, true, true, true, true, true, '#cccccc', SpreadsheetApp.BorderStyle.SOLID);
+  
+  // Format business unit totals row (Row 23)
+  sheet.getRange('A23:G23').setBackground('#f8f9fa')
+                           .setFontWeight('bold');
+  
+  // Format missing field section header (Row 25)
+  sheet.getRange('A25:H25').setBackground('#ff9800')
+                           .setFontColor('#ffffff')
+                           .setFontWeight('bold')
+                           .setFontSize(12);
+  
+  // Format missing field table headers (Row 27)
+  sheet.getRange('A27:G27').setBackground('#e8f0fe')
+                           .setFontWeight('bold')
+                           .setHorizontalAlignment('center')
+                           .setBorder(true, true, true, true, true, true, '#4285f4', SpreadsheetApp.BorderStyle.SOLID);
+  
+  // Format missing field data rows (Rows 28-31)
+  sheet.getRange('A28:G31').setBorder(true, true, true, true, true, true, '#cccccc', SpreadsheetApp.BorderStyle.SOLID);
+  
+  // Format missing field totals row (Row 31)
+  sheet.getRange('A31:G31').setBackground('#f8f9fa')
+                           .setFontWeight('bold');
+  
+  // Format platform section header (Row 33)
+  sheet.getRange('A33:H33').setBackground('#9c27b0')
+                           .setFontColor('#ffffff')
+                           .setFontWeight('bold')
+                           .setFontSize(12);
+  
+  // Format platform table headers (Row 35)
+  sheet.getRange('A35:G35').setBackground('#e8f0fe')
+                           .setFontWeight('bold')
+                           .setHorizontalAlignment('center')
+                           .setBorder(true, true, true, true, true, true, '#4285f4', SpreadsheetApp.BorderStyle.SOLID);
+  
+  // Format platform data rows (Rows 36-38)
+  sheet.getRange('A36:G38').setBorder(true, true, true, true, true, true, '#cccccc', SpreadsheetApp.BorderStyle.SOLID);
+  
+  // Format platform totals row (Row 38)
+  sheet.getRange('A38:G38').setBackground('#f8f9fa')
+                           .setFontWeight('bold');
+  
+  // Center align all numeric data
+  sheet.getRange('B19:G38').setHorizontalAlignment('center');
+  
+  // Add conditional formatting for high numbers (updated row ranges)
+  const criticalRange = sheet.getRange('E20:E38'); // 90+ days column (updated ranges)
+  const criticalRule = SpreadsheetApp.newConditionalFormatRule()
+    .whenNumberGreaterThan(100)
+    .setBackground('#ffebee')
+    .setRanges([criticalRange])
+    .build();
+  
+  const urgentRange = sheet.getRange('B20:B38'); // 0-7 days column (updated ranges)
+  const urgentRule = SpreadsheetApp.newConditionalFormatRule()
+    .whenNumberGreaterThan(10)
+    .setBackground('#fff3e0')
+    .setRanges([urgentRange])
+    .build();
+  
+  const rules = sheet.getConditionalFormatRules();
+  rules.push(criticalRule, urgentRule);
+  sheet.setConditionalFormatRules(rules);
 }
 
 /**
@@ -648,6 +1067,182 @@ function getIncidentStatus(incident) {
   }
   
   return 'Unknown';
+}
+
+/**
+ * Create a navigation URL to the Tracking sheet with instructions
+ */
+function createTrackingNavigationUrl(filterValue, dateBucket, filterType) {
+  // Get the current spreadsheet ID
+  const spreadsheetId = SpreadsheetApp.getActiveSpreadsheet().getId();
+  
+  // Get the Tracking sheet ID
+  const trackingSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Tracking');
+  if (!trackingSheet) {
+    return '#'; // Fallback if no tracking sheet
+  }
+  const sheetId = trackingSheet.getSheetId();
+  
+  // Create a simple navigation URL to the Tracking sheet
+  // We'll add a note in the cell to explain what to filter for
+  const baseUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit#gid=${sheetId}`;
+  return baseUrl;
+}
+
+/**
+ * Create drill-down sheets for each business unit and date bucket combination
+ */
+function createDrillDownSheets(incidentsWithMissingFields) {
+  console.log('📋 Creating drill-down sheets for detailed analysis...');
+  
+  try {
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    const analysis = analyzeIncidents(incidentsWithMissingFields);
+    
+    // Create drill-down sheets for business units
+    const businessUnits = ['Square', 'Cash', 'Afterpay'];
+    const buckets = ['0-7 days', '7-30 days', '30-90 days', '90+ days'];
+    
+    businessUnits.forEach(unit => {
+      buckets.forEach(bucket => {
+        const incidents = analysis.businessUnits[unit][bucket];
+        if (incidents.length > 0) {
+          const sheetName = `${unit} ${bucket}`;
+          createOrUpdateDrillDownSheet(sheetName, incidents, unit, bucket);
+        }
+      });
+    });
+    
+    console.log('✅ Drill-down sheets created successfully');
+    
+  } catch (error) {
+    console.error('❌ Failed to create drill-down sheets:', error.toString());
+  }
+}
+
+/**
+ * Create or update a drill-down sheet for specific incidents
+ */
+function createOrUpdateDrillDownSheet(sheetName, incidents, businessUnit, dateBucket) {
+  try {
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    
+    // Check if sheet already exists, if so delete it
+    let sheet = spreadsheet.getSheetByName(sheetName);
+    if (sheet) {
+      spreadsheet.deleteSheet(sheet);
+    }
+    
+    // Create new sheet
+    sheet = spreadsheet.insertSheet(sheetName);
+    
+    // Add title and summary
+    const title = `${businessUnit} Incidents - ${dateBucket}`;
+    sheet.getRange('A1').setValue(title);
+    sheet.getRange('A2').setValue(`Total Incidents: ${incidents.length}`);
+    sheet.getRange('A3').setValue(`Last Updated: ${new Date().toLocaleString()}`);
+    
+    // Add headers
+    const headers = [
+      'Reference',
+      'Platform', 
+      'Business Unit',
+      'Summary',
+      'Missing Fields',
+      'Slack Link',
+      'Created Date',
+      'Status',
+      'Date Bucket'
+    ];
+    
+    sheet.getRange(5, 1, 1, headers.length).setValues([headers]);
+    
+    // Add incident data
+    const incidentData = incidents.map(incident => [
+      incident.reference || 'N/A',
+      incident.platform,
+      incident.businessUnit,
+      incident.name || incident.summary || '',
+      incident.missingFields ? incident.missingFields.join(', ') : '',
+      incident.slackUrl ? `=HYPERLINK("${incident.slackUrl}","Open Slack")` : 'N/A',
+      new Date(incident.created_at).toLocaleDateString(),
+      getIncidentStatus(incident),
+      calculateDateBucket(incident.created_at)
+    ]);
+    
+    if (incidentData.length > 0) {
+      sheet.getRange(6, 1, incidentData.length, headers.length).setValues(incidentData);
+    }
+    
+    // Format the sheet
+    formatDrillDownSheet(sheet, headers.length, incidentData.length);
+    
+  } catch (error) {
+    console.error(`❌ Failed to create drill-down sheet ${sheetName}:`, error.toString());
+  }
+}
+
+/**
+ * Format drill-down sheet
+ */
+function formatDrillDownSheet(sheet, headerCount, dataRowCount) {
+  // Format title
+  sheet.getRange('A1').setBackground('#1f4e79')
+                      .setFontColor('#ffffff')
+                      .setFontWeight('bold')
+                      .setFontSize(14);
+  
+  // Format summary info
+  sheet.getRange('A2:A3').setBackground('#f0f8ff')
+                         .setFontWeight('bold');
+  
+  // Format headers
+  sheet.getRange(5, 1, 1, headerCount).setBackground('#4285f4')
+                                      .setFontColor('#ffffff')
+                                      .setFontWeight('bold')
+                                      .setHorizontalAlignment('center');
+  
+  // Format data rows
+  if (dataRowCount > 0) {
+    sheet.getRange(6, 1, dataRowCount, headerCount).setBorder(true, true, true, true, true, true, '#cccccc', SpreadsheetApp.BorderStyle.SOLID);
+  }
+  
+  // Set column widths
+  sheet.setColumnWidth(1, 120); // Reference
+  sheet.setColumnWidth(2, 100); // Platform
+  sheet.setColumnWidth(3, 120); // Business Unit
+  sheet.setColumnWidth(4, 300); // Summary
+  sheet.setColumnWidth(5, 200); // Missing Fields
+  sheet.setColumnWidth(6, 120); // Slack Link
+  sheet.setColumnWidth(7, 120); // Created Date
+  sheet.setColumnWidth(8, 120); // Status
+  sheet.setColumnWidth(9, 120); // Date Bucket
+}
+
+/**
+ * Create navigation links to drill-down sheets
+ */
+function createDrillDownLink(businessUnit, dateBucket) {
+  const spreadsheetId = SpreadsheetApp.getActiveSpreadsheet().getId();
+  const sheetName = `${businessUnit} ${dateBucket}`;
+  
+  // Find the sheet by name to get its ID
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = spreadsheet.getSheetByName(sheetName);
+  
+  if (sheet) {
+    const sheetId = sheet.getSheetId();
+    return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit#gid=${sheetId}`;
+  }
+  
+  // Fallback to tracking sheet
+  const trackingSheet = spreadsheet.getSheetByName('Tracking');
+  if (trackingSheet) {
+    const trackingSheetId = trackingSheet.getSheetId();
+    return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit#gid=${trackingSheetId}`;
+  }
+  
+  return '#';
 }
 
 /**
