@@ -93,7 +93,6 @@ function createCustomMenu() {
   ui.createMenu('🔍 Missing Fields Report')
     .addItem('🔄 Check Missing Fields Now', 'runMissingFieldsCheck')
     .addItem('📧 Send Test Email', 'sendTestEmail')
-    .addItem('📊 Update Summary Sheet', 'testSummaryUpdate')
     .addSeparator()
     .addSubMenu(ui.createMenu('⚙️ Automation')
       .addItem('🔧 Setup Daily Automation', 'setupDailyAutomation')
