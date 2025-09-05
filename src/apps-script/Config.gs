@@ -238,47 +238,47 @@ function updateSummarySheet(incidentsWithMissingFields) {
       [`Business Units: Square, Cash, Afterpay`, '', '', `Platforms: incident.io, FireHydrant`, '', '', '', ''],
       ['', '', '', '', '', '', '', ''],
       
-      // Row 9: Instructions for drilling down
-      ['💡 HOW TO VIEW DETAILED INCIDENTS', '', '', '', '', '', '', ''],
+      // Row 9-10: Business Unit Section Header
+      ['🏢 BUSINESS UNIT BREAKDOWN BY DATE BUCKET', '', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', '', ''],
+      
+      // Row 11: Business Unit Table Headers
+      ['Business Unit', '0-7 days', '7-30 days', '30-90 days', '90+ days', 'Total', '% of Total', ''],
+      
+      // Row 12-15: Business Unit Data
+      ...buildBusinessUnitRows(analysis),
+      ['', '', '', '', '', '', '', ''],
+      
+      // Row 17-18: Missing Field Section Header  
+      ['📋 MISSING FIELD ANALYSIS BY DATE BUCKET', '', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', '', ''],
+      
+      // Row 19: Missing Field Table Headers
+      ['Missing Field Type', '0-7 days', '7-30 days', '30-90 days', '90+ days', 'Total', '% of Total', ''],
+      
+      // Row 20-23: Missing Field Data
+      ...buildMissingFieldRows(analysis),
+      ['', '', '', '', '', '', '', ''],
+      
+      // Row 25-26: Platform Section Header
+      ['📈 PLATFORM BREAKDOWN BY DATE BUCKET', '', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', '', ''],
+      
+      // Row 27: Platform Table Headers
+      ['Platform', '0-7 days', '7-30 days', '30-90 days', '90+ days', 'Total', '% of Total', ''],
+      
+      // Row 28-30: Platform Data
+      ...buildPlatformRows(analysis),
+      ['', '', '', '', '', '', '', ''],
+      
+      // Row 32: Instructions for drilling down (moved to bottom)
+      ['💡 HOW TO FILTER INCIDENT DATA', '', '', '', '', '', '', ''],
       ['1. Go to the "Tracking" sheet tab at the bottom', '', '', '', '', '', '', ''],
       ['2. Use the filter buttons in the header row to filter by:', '', '', '', '', '', '', ''],
       ['   • Business Unit (Square, Cash, Afterpay)', '', '', '', '', '', '', ''],
       ['   • Date Bucket (0-7 days, 7-30 days, etc.)', '', '', '', '', '', '', ''],
       ['   • Platform (incident.io, firehydrant)', '', '', '', '', '', '', ''],
-      ['3. Click on Reference links to view incidents directly', '', '', '', '', '', '', ''],
-      ['', '', '', '', '', '', '', ''],
-      
-      // Row 17-18: Business Unit Section Header
-      ['🏢 BUSINESS UNIT BREAKDOWN BY DATE BUCKET', '', '', '', '', '', '', ''],
-      ['', '', '', '', '', '', '', ''],
-      
-      // Row 19: Business Unit Table Headers
-      ['Business Unit', '0-7 days', '7-30 days', '30-90 days', '90+ days', 'Total', '% of Total', ''],
-      
-      // Row 20-23: Business Unit Data
-      ...buildBusinessUnitRows(analysis),
-      ['', '', '', '', '', '', '', ''],
-      
-      // Row 25-26: Missing Field Section Header  
-      ['📋 MISSING FIELD ANALYSIS BY DATE BUCKET', '', '', '', '', '', '', ''],
-      ['', '', '', '', '', '', '', ''],
-      
-      // Row 27: Missing Field Table Headers
-      ['Missing Field Type', '0-7 days', '7-30 days', '30-90 days', '90+ days', 'Total', '% of Total', ''],
-      
-      // Row 28-31: Missing Field Data
-      ...buildMissingFieldRows(analysis),
-      ['', '', '', '', '', '', '', ''],
-      
-      // Row 33-34: Platform Section Header
-      ['📈 PLATFORM BREAKDOWN BY DATE BUCKET', '', '', '', '', '', '', ''],
-      ['', '', '', '', '', '', '', ''],
-      
-      // Row 35: Platform Table Headers
-      ['Platform', '0-7 days', '7-30 days', '30-90 days', '90+ days', 'Total', '% of Total', ''],
-      
-      // Row 36-38: Platform Data
-      ...buildPlatformRows(analysis)
+      ['3. Click on Reference links to view incidents directly', '', '', '', '', '', '', '']
     ];
     
     // Write all data at once
@@ -617,85 +617,91 @@ function formatEnhancedSummarySheet(sheet, totalRows) {
   sheet.getRange('A5:H7').setBackground('#f0f8ff')
                          .setBorder(true, true, true, true, true, true, '#4285f4', SpreadsheetApp.BorderStyle.SOLID);
   
-  // Format instructions section header (Row 9)
-  sheet.getRange('A9:H9').setBackground('#ffc107')
-                         .setFontColor('#000000')
+  // Format business unit section header (Row 9)
+  sheet.getRange('A9:H9').setBackground('#34a853')
+                         .setFontColor('#ffffff')
                          .setFontWeight('bold')
                          .setFontSize(12);
   
-  // Format instructions text (Rows 10-15)
-  sheet.getRange('A10:H15').setBackground('#fffbf0')
-                           .setFontStyle('italic');
+  // Format business unit table headers (Row 11)
+  sheet.getRange('A11:G11').setBackground('#e8f0fe')
+                           .setFontWeight('bold')
+                           .setHorizontalAlignment('center')
+                           .setBorder(true, true, true, true, true, true, '#4285f4', SpreadsheetApp.BorderStyle.SOLID);
   
-  // Format business unit section header (Row 17)
-  sheet.getRange('A17:H17').setBackground('#34a853')
+  // Format business unit data rows (Rows 12-15)
+  sheet.getRange('A12:G15').setBorder(true, true, true, true, true, true, '#cccccc', SpreadsheetApp.BorderStyle.SOLID);
+  
+  // Format business unit totals row (Row 15)
+  sheet.getRange('A15:G15').setBackground('#f8f9fa')
+                           .setFontWeight('bold');
+  
+  // Format missing field section header (Row 17)
+  sheet.getRange('A17:H17').setBackground('#ff9800')
                            .setFontColor('#ffffff')
                            .setFontWeight('bold')
                            .setFontSize(12);
   
-  // Format business unit table headers (Row 19)
+  // Format missing field table headers (Row 19)
   sheet.getRange('A19:G19').setBackground('#e8f0fe')
                            .setFontWeight('bold')
                            .setHorizontalAlignment('center')
                            .setBorder(true, true, true, true, true, true, '#4285f4', SpreadsheetApp.BorderStyle.SOLID);
   
-  // Format business unit data rows (Rows 20-23)
+  // Format missing field data rows (Rows 20-23)
   sheet.getRange('A20:G23').setBorder(true, true, true, true, true, true, '#cccccc', SpreadsheetApp.BorderStyle.SOLID);
   
-  // Format business unit totals row (Row 23)
+  // Format missing field totals row (Row 23)
   sheet.getRange('A23:G23').setBackground('#f8f9fa')
                            .setFontWeight('bold');
   
-  // Format missing field section header (Row 25)
-  sheet.getRange('A25:H25').setBackground('#ff9800')
+  // Format platform section header (Row 25)
+  sheet.getRange('A25:H25').setBackground('#9c27b0')
                            .setFontColor('#ffffff')
                            .setFontWeight('bold')
                            .setFontSize(12);
   
-  // Format missing field table headers (Row 27)
+  // Format platform table headers (Row 27)
   sheet.getRange('A27:G27').setBackground('#e8f0fe')
                            .setFontWeight('bold')
                            .setHorizontalAlignment('center')
                            .setBorder(true, true, true, true, true, true, '#4285f4', SpreadsheetApp.BorderStyle.SOLID);
   
-  // Format missing field data rows (Rows 28-31)
-  sheet.getRange('A28:G31').setBorder(true, true, true, true, true, true, '#cccccc', SpreadsheetApp.BorderStyle.SOLID);
+  // Format platform data rows (Rows 28-30)
+  sheet.getRange('A28:G30').setBorder(true, true, true, true, true, true, '#cccccc', SpreadsheetApp.BorderStyle.SOLID);
   
-  // Format missing field totals row (Row 31)
-  sheet.getRange('A31:G31').setBackground('#f8f9fa')
+  // Format platform totals row (Row 30)
+  sheet.getRange('A30:G30').setBackground('#f8f9fa')
                            .setFontWeight('bold');
   
-  // Format platform section header (Row 33)
-  sheet.getRange('A33:H33').setBackground('#9c27b0')
-                           .setFontColor('#ffffff')
+  // Format instructions section header (Row 32) - moved to bottom
+  sheet.getRange('A32:H32').setBackground('#ffc107')
+                           .setFontColor('#000000')
                            .setFontWeight('bold')
                            .setFontSize(12);
   
-  // Format platform table headers (Row 35)
-  sheet.getRange('A35:G35').setBackground('#e8f0fe')
-                           .setFontWeight('bold')
-                           .setHorizontalAlignment('center')
-                           .setBorder(true, true, true, true, true, true, '#4285f4', SpreadsheetApp.BorderStyle.SOLID);
-  
-  // Format platform data rows (Rows 36-38)
-  sheet.getRange('A36:G38').setBorder(true, true, true, true, true, true, '#cccccc', SpreadsheetApp.BorderStyle.SOLID);
-  
-  // Format platform totals row (Row 38)
-  sheet.getRange('A38:G38').setBackground('#f8f9fa')
-                           .setFontWeight('bold');
+  // Format instructions text (Rows 33-38) - moved to bottom
+  sheet.getRange('A33:H38').setBackground('#fffbf0')
+                           .setFontStyle('italic');
   
   // Center align all numeric data
-  sheet.getRange('B19:G38').setHorizontalAlignment('center');
+  sheet.getRange('B11:G30').setHorizontalAlignment('center');
+  
+  // Remove gridlines from the entire sheet
+  sheet.setHiddenGridlines(true);
+  
+  // Add a border around the entire content area
+  sheet.getRange('A1:H38').setBorder(true, true, true, true, false, false, '#4285f4', SpreadsheetApp.BorderStyle.SOLID);
   
   // Add conditional formatting for high numbers (updated row ranges)
-  const criticalRange = sheet.getRange('E20:E38'); // 90+ days column (updated ranges)
+  const criticalRange = sheet.getRange('E12:E30'); // 90+ days column (updated ranges)
   const criticalRule = SpreadsheetApp.newConditionalFormatRule()
     .whenNumberGreaterThan(100)
     .setBackground('#ffebee')
     .setRanges([criticalRange])
     .build();
   
-  const urgentRange = sheet.getRange('B20:B38'); // 0-7 days column (updated ranges)
+  const urgentRange = sheet.getRange('B12:B30'); // 0-7 days column (updated ranges)
   const urgentRule = SpreadsheetApp.newConditionalFormatRule()
     .whenNumberGreaterThan(10)
     .setBackground('#fff3e0')
