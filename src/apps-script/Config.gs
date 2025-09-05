@@ -579,7 +579,21 @@ function buildPlatformRows(analysis) {
  * Apply comprehensive formatting to the enhanced summary sheet
  */
 function formatEnhancedSummarySheet(sheet, totalRows) {
-  // Set column widths first
+  // Remove unnecessary columns (I and beyond) and rows (39 and beyond)
+  const maxCols = sheet.getMaxColumns();
+  const maxRows = sheet.getMaxRows();
+  
+  // Delete extra columns (keep only A-H, so delete from column 9 onwards)
+  if (maxCols > 8) {
+    sheet.deleteColumns(9, maxCols - 8);
+  }
+  
+  // Delete extra rows (keep only up to row 38, so delete from row 39 onwards)
+  if (maxRows > 38) {
+    sheet.deleteRows(39, maxRows - 38);
+  }
+  
+  // Set column widths
   sheet.setColumnWidth(1, 200); // First column (labels)
   sheet.setColumnWidth(2, 90);  // 0-7 days
   sheet.setColumnWidth(3, 90);  // 7-30 days
