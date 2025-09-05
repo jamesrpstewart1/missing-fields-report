@@ -20,10 +20,10 @@ function fetchIncidentsFromIncidentIO(businessUnit, config) {
   let pageCount = 0;
   const maxPages = 20; // Safety limit
   
-  // Calculate date range based on finalized configuration (90+ days to capture all buckets)
+  // Calculate date range based on finalized configuration (365 days to capture all buckets including 90+)
   const endDate = new Date();
   const startDate = new Date();
-  startDate.setDate(startDate.getDate() - INCIDENT_FILTERING.dateRanges.bucket3);
+  startDate.setDate(startDate.getDate() - INCIDENT_FILTERING.dateRanges.maxLookback);
   
   const apiStartDateStr = formatDate(startDate);
   const apiEndDateStr = formatDate(endDate);
@@ -113,10 +113,10 @@ function fetchIncidentsFromFireHydrant(businessUnit, config) {
   let page = 1;
   const maxPages = 20; // Safety limit
   
-  // Calculate date range based on finalized configuration (90+ days to capture all buckets)
+  // Calculate date range based on finalized configuration (365 days to capture all buckets including 90+)
   const endDate = new Date();
   const startDate = new Date();
-  startDate.setDate(startDate.getDate() - INCIDENT_FILTERING.dateRanges.bucket3);
+  startDate.setDate(startDate.getDate() - INCIDENT_FILTERING.dateRanges.maxLookback);
   
   while (page <= maxPages) {
     const url = `${apiConfig.baseUrl}/incidents?page=${page}&per_page=100`;

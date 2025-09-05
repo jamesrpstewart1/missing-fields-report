@@ -101,6 +101,7 @@ function createCustomMenu() {
       .addItem('📊 Show Automation Status', 'showAutomationStatus'))
     .addSeparator()
     .addItem('🔗 Test API Connections', 'testAllApiConnections')
+    .addItem('🐛 Debug Specific Incidents', 'debugSpecificIncidents')
     .addItem('ℹ️ About This Report', 'showAboutDialog')
     .addToUi();
   
@@ -226,6 +227,101 @@ function testSummaryUpdate() {
     ui.alert(
       '❌ Summary Sheet Test Failed',
       `Failed to update summary sheet:\n\n${error.toString()}`,
+      ui.ButtonSet.OK
+    );
+  }
+}
+
+/**
+ * Debug function to investigate specific incidents
+ */
+function debugSpecificIncidents() {
+  console.log('🔍 Debugging specific incidents: INC-4143, INC-4072');
+  
+  try {
+    const config = getConfiguration();
+    const squareConfig = CONFIG.incidentio.square;
+    
+    const incidentIds = ['INC-4143', 'INC-4072'];
+    
+    for (const incidentId of incidentIds) {
+      console.log(`\n📋 Investigating ${incidentId}:`);
+      
+      try {
+        // Fetch the specific incident
+        const response = UrlFetchApp.fetch(`${squareConfig.baseUrl}/incidents`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${squareConfig.apiKey}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.getResponseCode() === 200) {
+          const data = JSON.parse(response.getContentText());
+          const incident = data.incidents?.find(inc => inc.reference === incidentId);
+          
+          if (incident) {
+            console.log(`✅ Found ${incidentId}:`);
+            console.log(`   📅 Created: ${incident.created_at}`);
+            console.log(`   📊 Status: ${incident.incident_status?.name || 'Unknown'}`);
+            console.log(`   🔄 Mode: ${incident.mode?.name || 'Unknown'}`);
+            console.log(`   🏷️ Type: ${incident.incident_type?.name || 'Unknown'}`);
+            
+            // Check date bucket
+            const daysAgo = Math.floor((new Date() - new Date(incident.created_at)) / (1000 * 60 * 60 * 24));
+            console.log(`   📆 Days ago: ${daysAgo}`);
+            console.log(`   📦 Date bucket: ${daysAgo > 90 ? '90+ days' : daysAgo > 30 ? '30-90 days' : daysAgo > 7 ? '7-30 days' : '0-7 days'}`);
+            
+            // Check filtering criteria
+            const statusIncluded = INCIDENT_FILTERING.includeStatuses['incident.io'].includes(incident.incident_status?.name);
+            const modeIncluded = INCIDENT_FILTERING.includeModes.includes(incident.mode?.name);
+            const typeExcluded = INCIDENT_FILTERING.excludeTypes.some(excludeType => 
+              incident.incident_type?.name?.includes(excludeType)
+            );
+            
+            console.log(`   ✅ Status included: ${statusIncluded} (${incident.incident_status?.name})`);
+            console.log(`   ✅ Mode included: ${modeIncluded} (${incident.mode?.name})`);
+            console.log(`   ❌ Type excluded: ${typeExcluded} (${incident.incident_type?.name})`);
+            console.log(`   🎯 Would be included: ${statusIncluded && modeIncluded && !typeExcluded}`);
+            
+            // Check field values
+            console.log(`   🔍 Field analysis:`);
+            const affectedMarkets = getIncidentIOFieldValue(incident, 'Affected Markets');
+            const causalType = getIncidentIOFieldValue(incident, 'Causal Type');
+            const stabilizationType = getIncidentIOFieldValue(incident, 'Stabilization Type');
+            
+            console.log(`     📍 Affected Markets: "${affectedMarkets}"`);
+            console.log(`     🔍 Causal Type: "${causalType}"`);
+            console.log(`     🔧 Stabilization Type: "${stabilizationType}"`);
+            
+          } else {
+            console.log(`❌ ${incidentId} not found in current API results`);
+          }
+        } else {
+          console.log(`❌ API request failed: ${response.getResponseCode()}`);
+        }
+        
+      } catch (error) {
+        console.error(`❌ Error investigating ${incidentId}:`, error.toString());
+      }
+    }
+    
+    // Show results in UI
+    const ui = SpreadsheetApp.getUi();
+    ui.alert(
+      '🔍 Debug Complete',
+      'Debug investigation complete. Check the Apps Script logs (View > Logs) for detailed results.',
+      ui.ButtonSet.OK
+    );
+    
+  } catch (error) {
+    console.error('❌ Debug function failed:', error.toString());
+    
+    const ui = SpreadsheetApp.getUi();
+    ui.alert(
+      '❌ Debug Failed',
+      `Debug investigation failed:\n\n${error.toString()}`,
       ui.ButtonSet.OK
     );
   }
