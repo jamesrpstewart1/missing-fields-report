@@ -68,7 +68,8 @@ function fetchIncidentsFromIncidentIO(businessUnit, config) {
         ...incident,
         platform: 'incident.io',
         businessUnit: capitalizeBusinessUnit(businessUnit),
-        url: incident.permalink || `https://app.incident.io/incidents/${incident.id}`
+        url: incident.permalink || `https://app.incident.io/incidents/${incident.id}`,
+        slackUrl: getIncidentIOSlackUrl(incident)
       }));
       
       incidents.push(...enrichedIncidents);
@@ -155,7 +156,8 @@ function fetchIncidentsFromFireHydrant(businessUnit, config) {
           platform: 'firehydrant',
           businessUnit: capitalizeBusinessUnit(businessUnit),
           reference: getFireHydrantReference(incident),
-          url: incident.incident_url || `https://app.firehydrant.io/incidents/${incident.id}`
+          url: incident.incident_url || `https://app.firehydrant.io/incidents/${incident.id}`,
+          slackUrl: getFireHydrantSlackUrl(incident)
         }));
       
       incidents.push(...filteredIncidents);
@@ -256,6 +258,47 @@ function capitalizeBusinessUnit(businessUnit) {
   };
   
   return mapping[businessUnit.toLowerCase()] || businessUnit.charAt(0).toUpperCase() + businessUnit.slice(1).toLowerCase();
+}
+
+/**
+ * Get Slack URL for incident.io incident
+ */
+function getIncidentIOSlackUrl(incident) {
+  // incident.io provides slack_channel_id and slack_team_id
+  if (incident.slack_channel_id && incident.slack_team_id) {
+    return `https://app.slack.com/client/${incident.slack_team_id}/${incident.slack_channel_id}`;
+  } else if (incident.slack_channel_id) {
+    // Fallback without team ID
+    return `https://slack.com/app_redirect?channel=${incident.slack_channel_id}`;
+  }
+  
+  return null; // No Slack link available
+}
+
+/**
+ * Get Slack URL for FireHydrant incident  
+ */
+function getFireHydrantSlackUrl(incident) {
+  // FireHydrant might have incident_channels with Slack URLs
+  // Based on the debug output, we need to check if there are channels
+  // The debug was truncated, but we can try common field patterns
+  
+  // Try common FireHydrant Slack field patterns
+  if (incident.slack_channel_url) {
+    return incident.slack_channel_url;
+  } else if (incident.channel_url) {
+    return incident.channel_url;
+  } else if (incident.incident_channels && incident.incident_channels.length > 0) {
+    // Look for Slack channel in incident_channels array
+    const slackChannel = incident.incident_channels.find(channel => 
+      channel.source === 'slack' || channel.type === 'slack'
+    );
+    if (slackChannel && slackChannel.url) {
+      return slackChannel.url;
+    }
+  }
+  
+  return null; // No Slack link available
 }
 
 /**

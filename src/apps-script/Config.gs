@@ -108,18 +108,28 @@ function updateTrackingSheet(incidentsWithMissingFields) {
     
     const timestamp = new Date().toISOString();
     
-    // Prepare data for tracking sheet (with Date Bucket column)
+    // Prepare data for tracking sheet (with Date Bucket column and Slack links)
     const trackingData = incidentsWithMissingFields.map(incident => {
       const dateBucket = calculateDateBucket(incident.created_at);
       
+      // Create hyperlink for reference (clickable incident link)
+      const referenceLink = incident.reference && incident.url ? 
+        `=HYPERLINK("${incident.url}","${incident.reference}")` : 
+        incident.reference || 'N/A';
+      
+      // Get Slack link or show N/A
+      const slackLink = incident.slackUrl ? 
+        `=HYPERLINK("${incident.slackUrl}","Open Slack")` : 
+        'N/A';
+      
       return [
         timestamp,
-        incident.reference,
+        referenceLink,  // Now clickable!
         incident.platform,
         incident.businessUnit,
         incident.name || incident.summary || '',
         incident.missingFields.join(', '),
-        incident.url,
+        slackLink,  // Changed from incident URL to Slack link
         new Date(incident.created_at).toLocaleDateString(),
         'Active',
         dateBucket  // New Date Bucket column
@@ -135,7 +145,7 @@ function updateTrackingSheet(incidentsWithMissingFields) {
         'Business Unit',
         'Summary',
         'Missing Fields',
-        'URL',
+        'Slack Link',  // Changed from URL to Slack Link
         'Created Date',
         'Status',
         'Date Bucket'  // New Date Bucket column
@@ -150,10 +160,14 @@ function updateTrackingSheet(incidentsWithMissingFields) {
                  .setHorizontalAlignment('center');
     }
     
+    // Clear existing data (keep headers) before adding new results
+    if (sheet.getLastRow() > 1) {
+      sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).clearContent();
+    }
+    
     // Add new tracking data
     if (trackingData.length > 0) {
-      const startRow = sheet.getLastRow() + 1;
-      sheet.getRange(startRow, 1, trackingData.length, trackingData[0].length).setValues(trackingData);
+      sheet.getRange(2, 1, trackingData.length, trackingData[0].length).setValues(trackingData);
     }
     
     console.log(`✅ Tracking sheet updated with ${trackingData.length} entries`);
