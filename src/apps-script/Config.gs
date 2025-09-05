@@ -131,7 +131,7 @@ function updateTrackingSheet(incidentsWithMissingFields) {
         incident.missingFields.join(', '),
         slackLink,  // Changed from incident URL to Slack link
         new Date(incident.created_at).toLocaleDateString(),
-        'Active',
+        getIncidentStatus(incident),  // Real incident status instead of 'Active'
         dateBucket  // New Date Bucket column
       ];
     });
@@ -633,6 +633,21 @@ function testAllApiConnections() {
     
     throw error;
   }
+}
+
+/**
+ * Get real incident status from platform-specific data
+ */
+function getIncidentStatus(incident) {
+  if (incident.platform === 'incident.io') {
+    // incident.io uses incident_status.name
+    return incident.incident_status?.name || 'Unknown';
+  } else if (incident.platform === 'firehydrant') {
+    // FireHydrant uses current_milestone
+    return incident.current_milestone || 'Unknown';
+  }
+  
+  return 'Unknown';
 }
 
 /**
