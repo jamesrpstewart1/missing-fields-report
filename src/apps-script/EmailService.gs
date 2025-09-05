@@ -331,14 +331,17 @@ function generateTieredEmailContent(buckets, summary) {
 
   // Show bucket summary if there are older incidents
   if (buckets.bucket1.length > 0 || buckets.bucket2.length > 0 || buckets.bucket3.length > 0) {
+    // Get the spreadsheet URL for the hyperlink
+    const spreadsheetUrl = SpreadsheetApp.getActiveSpreadsheet().getUrl();
+    
     html += `
         <div class="bucket-summary">
             <h3>📅 Additional Incidents by Age</h3>
-            <p>The following older incidents also have missing fields. See the full Google Sheets report for complete details.</p>
+            <p>The following older incidents also have missing fields. See the full <a href="${spreadsheetUrl}" target="_blank">Missing Field Report here</a> for complete details.</p>
             <p>
-                <span class="bucket-count">${buckets.bucket1.length}</span> ${INCIDENT_FILTERING.dateRanges.emailFocus + 1}-${INCIDENT_FILTERING.dateRanges.bucket1} days old
-                <span class="bucket-count">${buckets.bucket2.length}</span> ${INCIDENT_FILTERING.dateRanges.bucket1 + 1}-${INCIDENT_FILTERING.dateRanges.bucket2} days old
-                <span class="bucket-count">${buckets.bucket3.length}</span> ${INCIDENT_FILTERING.dateRanges.bucket2 + 1}+ days old
+                <span class="bucket-count">${buckets.bucket1.length}</span> 7-30 days old
+                <span class="bucket-count">${buckets.bucket2.length}</span> 30-90 days old
+                <span class="bucket-count">${buckets.bucket3.length}</span> 90+ days old
             </p>
         </div>
 `;
@@ -417,11 +420,12 @@ function generateTieredPlainTextContent(buckets, summary) {
   
   // Show bucket summary if there are older incidents
   if (buckets.bucket1.length > 0 || buckets.bucket2.length > 0 || buckets.bucket3.length > 0) {
+    const spreadsheetUrl = SpreadsheetApp.getActiveSpreadsheet().getUrl();
     text += `ADDITIONAL INCIDENTS BY AGE:\n`;
-    text += `- ${INCIDENT_FILTERING.dateRanges.emailFocus + 1}-${INCIDENT_FILTERING.dateRanges.bucket1} days old: ${buckets.bucket1.length}\n`;
-    text += `- ${INCIDENT_FILTERING.dateRanges.bucket1 + 1}-${INCIDENT_FILTERING.dateRanges.bucket2} days old: ${buckets.bucket2.length}\n`;
-    text += `- ${INCIDENT_FILTERING.dateRanges.bucket2 + 1}+ days old: ${buckets.bucket3.length}\n`;
-    text += `(See Google Sheets report for complete details)\n\n`;
+    text += `- 7-30 days old: ${buckets.bucket1.length}\n`;
+    text += `- 30-90 days old: ${buckets.bucket2.length}\n`;
+    text += `- 90+ days old: ${buckets.bucket3.length}\n`;
+    text += `(See the full Missing Field Report here: ${spreadsheetUrl} for complete details)\n\n`;
   }
   
   if (buckets.emailFocus.length > 0) {
