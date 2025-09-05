@@ -1266,6 +1266,292 @@ function createDrillDownLink(businessUnit, dateBucket) {
 }
 
 /**
+ * Create README sheet with comprehensive documentation
+ */
+function createReadmeSheet() {
+  console.log('📚 Creating README sheet...');
+  
+  try {
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    
+    // Check if README sheet already exists
+    let readmeSheet = spreadsheet.getSheetByName('README');
+    if (readmeSheet) {
+      // Clear existing content
+      readmeSheet.clear();
+    } else {
+      // Create new README sheet
+      readmeSheet = spreadsheet.insertSheet('README');
+      // Move to first position
+      spreadsheet.moveActiveSheet(1);
+    }
+    
+    // Prepare README content
+    const readmeContent = [
+      // Title and Overview
+      ['📚 MISSING FIELDS REPORT - SYSTEM DOCUMENTATION', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', ''],
+      ['🎯 SYSTEM OVERVIEW', '', '', '', '', '', ''],
+      ['This automated system monitors incidents across incident.io and FireHydrant platforms', '', '', '', '', '', ''],
+      ['to identify missing required fields and send daily email notifications.', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', ''],
+      
+      // How It Works
+      ['⚙️ HOW IT WORKS', '', '', '', '', '', ''],
+      ['1. Daily at 9:00 AM, the system automatically fetches incidents from all platforms', '', '', '', '', '', ''],
+      ['2. Filters incidents based on specific criteria (status, type, mode)', '', '', '', '', '', ''],
+      ['3. Validates required fields for each business unit', '', '', '', '', '', ''],
+      ['4. Sends email notifications for incidents with missing fields', '', '', '', '', '', ''],
+      ['5. Updates tracking sheets with current data', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', ''],
+      
+      // Business Unit & Platform Mapping
+      ['🏢 BUSINESS UNIT & PLATFORM MAPPING', '', '', '', '', '', ''],
+      ['Business Unit', 'Platform', 'API Source', 'Required Fields', '', '', ''],
+      ['Square', 'incident.io', 'api.incident.io/v2', 'Affected Markets, Causal Type, Stabilization Type', '', '', ''],
+      ['Cash', 'incident.io', 'api.incident.io/v2', 'Affected Markets, Causal Type, Stabilization Type', '', '', ''],
+      ['Afterpay', 'FireHydrant', 'api.firehydrant.io/v1', 'Market', '', '', ''],
+      ['', '', '', '', '', '', ''],
+      
+      // Filtering Criteria
+      ['🔍 FILTERING CRITERIA', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', ''],
+      ['INCIDENT.IO FILTERING (Square & Cash):', '', '', '', '', '', ''],
+      ['✅ INCLUDED Statuses:', 'Stabilized, Postmortem Prep, Postmortem Meeting Prep, Closed', '', '', '', '', ''],
+      ['✅ INCLUDED Modes:', 'standard, retrospective', '', '', '', '', ''],
+      ['❌ EXCLUDED Types:', '[TEST], [Preemptive SEV]', '', '', '', '', ''],
+      ['', '', '', '', '', '', ''],
+      ['FIREHYDRANT FILTERING (Afterpay):', '', '', '', '', '', ''],
+      ['✅ INCLUDED Statuses:', 'Stabilized, Remediation, Resolved, Retrospective Started,', '', '', '', '', ''],
+      ['', 'Retrospective Completed, Closed', '', '', '', '', ''],
+      ['✅ INCLUDED Modes:', 'standard, retrospective', '', '', '', '', ''],
+      ['❌ EXCLUDED Types:', '[TEST], [Preemptive SEV]', '', '', '', '', ''],
+      ['', '', '', '', '', '', ''],
+      
+      // Date Buckets
+      ['📅 DATE BUCKET SYSTEM', '', '', '', '', '', ''],
+      ['The system categorizes incidents into age-based buckets for reporting:', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', ''],
+      ['Bucket', 'Age Range', 'Email Treatment', 'Purpose', '', '', ''],
+      ['0-7 days', 'Last 7 days', 'Full details shown', 'Immediate action required', '', '', ''],
+      ['7-30 days', '7-30 days old', 'Count summary only', 'Recent but not urgent', '', '', ''],
+      ['30-90 days', '30-90 days old', 'Count summary only', 'Older incidents', '', '', ''],
+      ['90+ days', '90+ days old', 'Count summary only', 'Historical tracking', '', '', ''],
+      ['', '', '', '', '', '', ''],
+      
+      // Sheet Descriptions
+      ['📊 SHEET DESCRIPTIONS', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', ''],
+      ['SUMMARY SHEET:', '', '', '', '', '', ''],
+      ['• Executive dashboard with key metrics and breakdowns', '', '', '', '', '', ''],
+      ['• Business unit analysis by date buckets', '', '', '', '', '', ''],
+      ['• Missing field analysis by type and age', '', '', '', '', '', ''],
+      ['• Platform breakdown and totals', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', ''],
+      ['TRACKING SHEET:', '', '', '', '', '', ''],
+      ['• Detailed list of all incidents with missing fields', '', '', '', '', '', ''],
+      ['• Clickable incident references and Slack links', '', '', '', '', '', ''],
+      ['• Filterable by business unit, platform, and date bucket', '', '', '', '', '', ''],
+      ['• Updated daily with current data', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', ''],
+      ['CONFIG SHEET:', '', '', '', '', '', ''],
+      ['• System configuration parameters', '', '', '', '', '', ''],
+      ['• Email recipients and notification settings', '', '', '', '', '', ''],
+      ['• API keys and endpoint configurations', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', ''],
+      ['LOGS SHEET:', '', '', '', '', '', ''],
+      ['• Execution history and system performance', '', '', '', '', '', ''],
+      ['• Error tracking and debugging information', '', '', '', '', '', ''],
+      ['• Daily run statistics and timestamps', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', ''],
+      
+      // Email Notifications
+      ['📧 EMAIL NOTIFICATIONS', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', ''],
+      ['WHEN EMAILS ARE SENT:', '', '', '', '', '', ''],
+      ['• Daily at 9:00 AM (automated)', '', '', '', '', '', ''],
+      ['• Only when incidents with missing fields are found', '', '', '', '', '', ''],
+      ['• Manual runs via "Check Missing Fields Now" menu', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', ''],
+      ['EMAIL CONTENT:', '', '', '', '', '', ''],
+      ['• Summary of recent incidents (last 7 days) with full details', '', '', '', '', '', ''],
+      ['• Count summary of older incidents by age bucket', '', '', '', '', '', ''],
+      ['• Color-coded business unit badges (Black=Square, Green=Cash, Blue=Afterpay)', '', '', '', '', '', ''],
+      ['• Direct links to incidents and Google Sheets report', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', ''],
+      
+      // Manual Actions
+      ['🔧 MANUAL ACTIONS', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', ''],
+      ['AVAILABLE MENU OPTIONS:', '', '', '', '', '', ''],
+      ['🔄 Check Missing Fields Now', 'Run immediate check and update all sheets', '', '', '', '', ''],
+      ['📧 Send Test Email', 'Send test notification to verify email delivery', '', '', '', '', ''],
+      ['🔧 Setup Daily Automation', 'Configure daily 9 AM automated checks', '', '', '', '', ''],
+      ['🛑 Cancel Daily Automation', 'Disable automated daily checks', '', '', '', '', ''],
+      ['📊 Show Automation Status', 'View current automation trigger status', '', '', '', '', ''],
+      ['🔗 Test API Connections', 'Verify connectivity to all platforms', '', '', '', '', ''],
+      ['ℹ️ About This Report', 'Show basic system information', '', '', '', '', ''],
+      ['', '', '', '', '', '', ''],
+      
+      // Troubleshooting
+      ['🛠️ TROUBLESHOOTING', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', ''],
+      ['COMMON ISSUES:', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', ''],
+      ['Issue: No data in sheets', '', '', '', '', '', ''],
+      ['Solution: Check API connections, verify API keys in Config sheet', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', ''],
+      ['Issue: Emails not being sent', '', '', '', '', '', ''],
+      ['Solution: Verify email recipients in Config sheet, check automation status', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', ''],
+      ['Issue: Wrong incidents being tracked', '', '', '', '', '', ''],
+      ['Solution: Review filtering criteria above, check incident status/type/mode', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', ''],
+      ['Issue: Automation not running', '', '', '', '', '', ''],
+      ['Solution: Use "Show Automation Status" to check triggers, re-setup if needed', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', ''],
+      
+      // Field Mapping Details
+      ['🗺️ FIELD MAPPING DETAILS', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', ''],
+      ['INCIDENT.IO FIELD MAPPING:', '', '', '', '', '', ''],
+      ['Required Field', 'Possible API Field Names', '', '', '', '', ''],
+      ['Affected Markets', 'Affected Markets, Affected Market(s), Markets Affected, Impacted Markets', '', '', '', '', ''],
+      ['Causal Type', 'Causal Type, CAUSAL TYPE', '', '', '', '', ''],
+      ['Stabilization Type', 'Stabilisation Type, Stabilization Type, STABILISATION TYPE, STABILIZATION TYPE', '', '', '', '', ''],
+      ['', '', '', '', '', '', ''],
+      ['FIREHYDRANT FIELD MAPPING:', '', '', '', '', '', ''],
+      ['Required Field', 'Possible API Field Names', '', '', '', '', ''],
+      ['Market', 'market, Market, markets, Markets', '', '', '', '', ''],
+      ['', '', '', '', '', '', ''],
+      
+      // Contact Information
+      ['📞 SUPPORT & CONTACT', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', ''],
+      ['For technical issues or questions:', '', '', '', '', '', ''],
+      ['• Check the Logs sheet for error details', '', '', '', '', '', ''],
+      ['• Use "Test API Connections" to verify platform connectivity', '', '', '', '', '', ''],
+      ['• Review this README for configuration guidance', '', '', '', '', '', ''],
+      ['• Contact the platform team for API key or access issues', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', ''],
+      
+      // Version Information
+      ['📋 SYSTEM INFORMATION', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', ''],
+      ['Version:', 'v2.0', '', '', '', '', ''],
+      ['Last Updated:', new Date().toLocaleDateString(), '', '', '', '', ''],
+      ['Platforms:', 'incident.io (Square, Cash), FireHydrant (Afterpay)', '', '', '', '', ''],
+      ['Data Retention:', '365 days (12 months)', '', '', '', '', ''],
+      ['Email Focus:', 'Last 7 days (detailed), older incidents summarized', '', '', '', '', ''],
+      ['Update Frequency:', 'Daily at 9:00 AM', '', '', '', '', '']
+    ];
+    
+    // Write content to sheet
+    if (readmeContent.length > 0) {
+      readmeSheet.getRange(1, 1, readmeContent.length, 7).setValues(readmeContent);
+    }
+    
+    // Apply formatting
+    formatReadmeSheet(readmeSheet);
+    
+    console.log('✅ README sheet created successfully');
+    
+    // Show success message
+    const ui = SpreadsheetApp.getUi();
+    ui.alert(
+      '📚 README Sheet Created',
+      'A comprehensive README sheet has been added to your spreadsheet with:\n\n' +
+      '• System overview and how it works\n' +
+      '• Business unit and platform mapping\n' +
+      '• Detailed filtering criteria\n' +
+      '• Date bucket explanations\n' +
+      '• Sheet descriptions\n' +
+      '• Email notification details\n' +
+      '• Manual actions guide\n' +
+      '• Troubleshooting tips\n' +
+      '• Field mapping details\n\n' +
+      'Check the README tab for complete documentation!',
+      ui.ButtonSet.OK
+    );
+    
+  } catch (error) {
+    console.error('❌ Failed to create README sheet:', error.toString());
+    
+    const ui = SpreadsheetApp.getUi();
+    ui.alert(
+      '❌ README Creation Failed',
+      `Failed to create README sheet:\n\n${error.toString()}`,
+      ui.ButtonSet.OK
+    );
+  }
+}
+
+/**
+ * Format the README sheet for better readability
+ */
+function formatReadmeSheet(sheet) {
+  // Set column widths
+  sheet.setColumnWidth(1, 300); // Main content
+  sheet.setColumnWidth(2, 200); // Secondary content
+  sheet.setColumnWidth(3, 150); // Tertiary content
+  sheet.setColumnWidth(4, 200); // Additional content
+  sheet.setColumnWidth(5, 100); // Spacing
+  sheet.setColumnWidth(6, 100); // Spacing
+  sheet.setColumnWidth(7, 100); // Spacing
+  
+  // Format title (Row 1)
+  const titleRange = sheet.getRange('A1:G1');
+  titleRange.merge()
+           .setBackground('#1f4e79')
+           .setFontColor('#ffffff')
+           .setFontWeight('bold')
+           .setFontSize(16)
+           .setHorizontalAlignment('center')
+           .setVerticalAlignment('middle');
+  
+  // Format section headers (rows with emoji headers)
+  const sectionHeaders = [3, 7, 14, 20, 33, 47, 56, 68, 78, 95, 104, 113]; // Approximate row numbers for section headers
+  
+  sectionHeaders.forEach(row => {
+    try {
+      const headerRange = sheet.getRange(row, 1, 1, 7);
+      headerRange.setBackground('#4285f4')
+                 .setFontColor('#ffffff')
+                 .setFontWeight('bold')
+                 .setFontSize(12);
+    } catch (error) {
+      // Skip if row doesn't exist
+    }
+  });
+  
+  // Format table headers
+  const tableHeaderRows = [15, 25, 35, 58, 79, 96]; // Approximate rows with table headers
+  
+  tableHeaderRows.forEach(row => {
+    try {
+      const headerRange = sheet.getRange(row, 1, 1, 4);
+      headerRange.setBackground('#e8f0fe')
+                 .setFontWeight('bold')
+                 .setHorizontalAlignment('center');
+    } catch (error) {
+      // Skip if row doesn't exist
+    }
+  });
+  
+  // Remove gridlines
+  sheet.setHiddenGridlines(true);
+  
+  // Add border around content
+  const lastRow = sheet.getLastRow();
+  if (lastRow > 0) {
+    sheet.getRange(1, 1, lastRow, 7).setBorder(true, true, true, true, false, false, '#4285f4', SpreadsheetApp.BorderStyle.SOLID);
+  }
+  
+  // Freeze first row
+  sheet.setFrozenRows(1);
+}
+
+/**
  * Show about dialog
  */
 function showAboutDialog() {
@@ -1277,7 +1563,8 @@ function showAboutDialog() {
     '• Sends daily email notifications\n' +
     '• Tracks incidents until fields are completed\n' +
     '• Supports Square, Cash, and Afterpay business units\n\n' +
-    'Use "Check Missing Fields Now" for manual checks or "Setup Daily Automation" for automated daily reports.',
+    'Use "Check Missing Fields Now" for manual checks or "Setup Daily Automation" for automated daily reports.\n\n' +
+    'For complete documentation, check the README sheet!',
     ui.ButtonSet.OK
   );
 }
