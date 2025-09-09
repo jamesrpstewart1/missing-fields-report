@@ -102,9 +102,7 @@ function createCustomMenu() {
       .addSeparator()
       .addItem('📊 Show Automation Status', 'showAutomationStatus'))
     .addSeparator()
-    .addSubMenu(ui.createMenu('🔬 Testing & Research')
-      .addItem('📊 Research Severity Fields', 'researchSeverityFields')
-      .addItem('🧪 Test Severity Filtering', 'testSeverityFiltering')
+    .addSubMenu(ui.createMenu('🔬 Testing & Development')
       .addItem('🔗 Test API Connections', 'testAllApiConnections'))
     .addSeparator()
     .addItem('ℹ️ About This Report', 'showAboutDialog')
@@ -410,122 +408,9 @@ function testNewFieldValidation() {
   }
 }
 
-/**
- * Test severity filtering functionality
- */
-function testSeverityFiltering() {
-  console.log('🧪 Testing severity filtering functionality...');
-  
-  try {
-    const config = getConfiguration();
-    
-    // Show current severity filtering configuration
-    console.log('\n📋 Current Severity Filtering Configuration:');
-    console.log(`   Enable Severity Filtering: ${config.enableSeverityFiltering}`);
-    console.log(`   incident.io Severities: ${JSON.stringify(config.incidentioSeverities)}`);
-    console.log(`   Include Internal Impact: ${config.includeInternalImpact}`);
-    console.log(`   FireHydrant Severities: ${JSON.stringify(config.firehydrantSeverities)}`);
-    
-    // Test with severity filtering disabled (baseline)
-    console.log('\n--- Testing with Severity Filtering DISABLED (Baseline) ---');
-    const configDisabled = { ...config, enableSeverityFiltering: false };
-    
-    const squareIncidentsBaseline = fetchIncidentsFromIncidentIO('square', configDisabled);
-    const cashIncidentsBaseline = fetchIncidentsFromIncidentIO('cash', configDisabled);
-    const afterpayIncidentsBaseline = fetchIncidentsFromFireHydrant('afterpay', configDisabled);
-    
-    const baselineTotal = squareIncidentsBaseline.length + cashIncidentsBaseline.length + afterpayIncidentsBaseline.length;
-    console.log(`📊 Baseline Results (No Severity Filter):`);
-    console.log(`   Square: ${squareIncidentsBaseline.length} incidents`);
-    console.log(`   Cash: ${cashIncidentsBaseline.length} incidents`);
-    console.log(`   Afterpay: ${afterpayIncidentsBaseline.length} incidents`);
-    console.log(`   Total: ${baselineTotal} incidents`);
-    
-    // Test with severity filtering enabled
-    if (config.enableSeverityFiltering) {
-      console.log('\n--- Testing with Severity Filtering ENABLED ---');
-      
-      const squareIncidentsFiltered = fetchIncidentsFromIncidentIO('square', config);
-      const cashIncidentsFiltered = fetchIncidentsFromIncidentIO('cash', config);
-      const afterpayIncidentsFiltered = fetchIncidentsFromFireHydrant('afterpay', config);
-      
-      const filteredTotal = squareIncidentsFiltered.length + cashIncidentsFiltered.length + afterpayIncidentsFiltered.length;
-      console.log(`📊 Filtered Results:`);
-      console.log(`   Square: ${squareIncidentsFiltered.length} incidents (${squareIncidentsBaseline.length - squareIncidentsFiltered.length} filtered out)`);
-      console.log(`   Cash: ${cashIncidentsFiltered.length} incidents (${cashIncidentsBaseline.length - cashIncidentsFiltered.length} filtered out)`);
-      console.log(`   Afterpay: ${afterpayIncidentsFiltered.length} incidents (${afterpayIncidentsBaseline.length - afterpayIncidentsFiltered.length} filtered out)`);
-      console.log(`   Total: ${filteredTotal} incidents (${baselineTotal - filteredTotal} filtered out)`);
-      
-      // Show severity breakdown for sample incidents
-      console.log('\n🔍 Sample Severity Analysis:');
-      const sampleIncidents = [...squareIncidentsFiltered.slice(0, 3), ...afterpayIncidentsFiltered.slice(0, 2)];
-      sampleIncidents.forEach((incident, index) => {
-        console.log(`\n   ${index + 1}. ${incident.reference} (${incident.platform}):`);
-        if (incident.severity) {
-          const severityName = incident.severity.name || incident.severity.value || incident.severity;
-          console.log(`      📊 Severity: ${severityName}`);
-          console.log(`      ✅ Matches filter: ${incident.platform === 'incident.io' ? 
-            matchesIncidentIOSeverity(incident, config.incidentioSeverities, config.includeInternalImpact) :
-            matchesFireHydrantSeverity(incident, config.firehydrantSeverities)}`);
-        } else {
-          console.log(`      ❌ No severity data`);
-        }
-      });
-      
-    } else {
-      console.log('\n⚠️ Severity filtering is DISABLED in configuration');
-      console.log('   To test filtering, set "enableSeverityFiltering" to TRUE in the Config sheet');
-    }
-    
-    // Test specific severity matching functions
-    console.log('\n--- Testing Severity Matching Functions ---');
-    
-    // Test incident.io severity matching
-    if (squareIncidentsBaseline.length > 0) {
-      const testIncident = squareIncidentsBaseline[0];
-      console.log(`\n🔍 Testing incident.io severity matching with: ${testIncident.reference}`);
-      if (testIncident.severity) {
-        const severityName = testIncident.severity.name;
-        console.log(`   Severity: ${severityName}`);
-        console.log(`   Matches SEV1,SEV2: ${matchesIncidentIOSeverity(testIncident, ['SEV1', 'SEV2'], true)}`);
-        console.log(`   Matches SEV0,SEV1,SEV2,SEV3,SEV4: ${matchesIncidentIOSeverity(testIncident, ['SEV0', 'SEV1', 'SEV2', 'SEV3', 'SEV4'], true)}`);
-      }
-    }
-    
-    // Test FireHydrant severity matching
-    if (afterpayIncidentsBaseline.length > 0) {
-      const testIncident = afterpayIncidentsBaseline[0];
-      console.log(`\n🔍 Testing FireHydrant severity matching with: ${testIncident.reference}`);
-      if (testIncident.severity) {
-        const severityName = testIncident.severity.name || testIncident.severity.value || testIncident.severity;
-        console.log(`   Severity: ${severityName}`);
-        console.log(`   Matches SEV1,SEV2: ${matchesFireHydrantSeverity(testIncident, ['SEV1', 'SEV2'])}`);
-        console.log(`   Matches SEV0,SEV1,SEV2,SEV3,SEV4: ${matchesFireHydrantSeverity(testIncident, ['SEV0', 'SEV1', 'SEV2', 'SEV3', 'SEV4'])}`);
-      }
-    }
-    
-    // Show results in UI
-    const ui = SpreadsheetApp.getUi();
-    const summary = `Severity Filtering Test Complete!\n\n` +
-      `📊 Results:\n` +
-      `• Baseline (no filter): ${baselineTotal} incidents\n` +
-      `• With filtering: ${config.enableSeverityFiltering ? 'Enabled' : 'Disabled'}\n` +
-      `• Configuration loaded successfully\n\n` +
-      `Check Apps Script logs for detailed analysis.`;
-    
-    ui.alert('🧪 Severity Filtering Test', summary, ui.ButtonSet.OK);
-    
-  } catch (error) {
-    console.error('❌ Severity filtering test failed:', error.toString());
-    
-    const ui = SpreadsheetApp.getUi();
-    ui.alert(
-      '❌ Test Failed',
-      `Severity filtering test failed:\n\n${error.toString()}`,
-      ui.ButtonSet.OK
-    );
-  }
-}
+
+
+
 
 // TODO: Implement remaining functions
 // - getConfiguration()
