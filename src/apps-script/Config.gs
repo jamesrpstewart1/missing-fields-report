@@ -58,7 +58,13 @@ function getDefaultConfiguration() {
     
     // Incident filtering
     includeModes: INCIDENT_FILTERING.includeModes,
-    excludeTypes: INCIDENT_FILTERING.excludeTypes
+    excludeTypes: INCIDENT_FILTERING.excludeTypes,
+    
+    // Severity filtering (new)
+    enableSeverityFiltering: false,
+    incidentioSeverities: ['SEV0', 'SEV1', 'SEV2', 'SEV3', 'SEV4'],
+    includeInternalImpact: true,
+    firehydrantSeverities: ['SEV0', 'SEV1', 'SEV2', 'SEV3', 'SEV4']
   };
 }
 
@@ -108,7 +114,7 @@ function updateTrackingSheet(incidentsWithMissingFields) {
     
     const timestamp = new Date().toISOString();
     
-    // Prepare data for tracking sheet (with Date Bucket column and Slack links)
+    // Prepare data for tracking sheet (with Date Bucket column, Slack links, and Severity)
     const trackingData = incidentsWithMissingFields.map(incident => {
       const dateBucket = calculateDateBucket(incident.created_at);
       
@@ -122,6 +128,9 @@ function updateTrackingSheet(incidentsWithMissingFields) {
         `=HYPERLINK("${incident.slackUrl}","Open Slack")` : 
         'N/A';
       
+      // Get severity information
+      const severity = getIncidentSeverity(incident);
+      
       return [
         timestamp,
         referenceLink,  // Now clickable!
@@ -132,6 +141,7 @@ function updateTrackingSheet(incidentsWithMissingFields) {
         slackLink,  // Changed from incident URL to Slack link
         new Date(incident.created_at).toLocaleDateString(),
         getIncidentStatus(incident),  // Real incident status instead of 'Active'
+        severity,  // New Severity column
         dateBucket  // New Date Bucket column
       ];
     });
@@ -148,6 +158,7 @@ function updateTrackingSheet(incidentsWithMissingFields) {
         'Slack Link',  // Changed from URL to Slack Link
         'Created Date',
         'Status',
+        'Severity',  // New Severity column
         'Date Bucket'  // New Date Bucket column
       ];
       sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
@@ -224,6 +235,10 @@ function updateSummarySheet(incidentsWithMissingFields) {
     const totalIncidents = analysis.totalIncidentsProcessed || totalMissing; // Will be set by the calling function
     const missingPercentage = totalIncidents > 0 ? ((totalMissing / totalIncidents) * 100).toFixed(1) : '0.0';
     
+    // Get severity filtering info
+    const severityFilteringEnabled = config.enableSeverityFiltering || false;
+    const severityFilterInfo = getSeverityFilteringSummary(config);
+    
     // Build the complete enhanced summary layout
     const summaryData = [
       // Row 1: Main Title
@@ -234,10 +249,11 @@ function updateSummarySheet(incidentsWithMissingFields) {
       ['📊 EXECUTIVE SUMMARY', '', '', '', '', `Last Updated: ${timestamp}`, '', ''],
       ['', '', '', '', '', '', '', ''],
       
-      // Row 5-8: Executive Summary Data
+      // Row 5-9: Executive Summary Data (expanded for severity filtering)
       [`Total Incidents (${lookbackDays} days): ${totalIncidents.toLocaleString()}`, '', '', `Missing Fields: ${totalMissing.toLocaleString()} (${missingPercentage}%)`, '', '', '', ''],
       [`Critical (90+ days): ${analysis.buckets['90+ days'].length.toLocaleString()}`, '', '', `Urgent (0-7 days): ${analysis.buckets['0-7 days'].length.toLocaleString()}`, '', '', '', ''],
       [`Business Units: Square, Cash, Afterpay`, '', '', `Platforms: incident.io, FireHydrant`, '', '', '', ''],
+      [severityFilterInfo.status, '', '', severityFilterInfo.criteria, '', '', '', ''],
       ['', '', '', '', '', '', '', ''],
       
       // Row 9-10: Business Unit Section Header
@@ -1095,6 +1111,28 @@ function getIncidentStatus(incident) {
 }
 
 /**
+ * Get incident severity from platform-specific data
+ */
+function getIncidentSeverity(incident) {
+  if (incident.platform === 'incident.io') {
+    // incident.io uses severity.name
+    return incident.severity?.name || 'Unknown';
+  } else if (incident.platform === 'firehydrant') {
+    // FireHydrant severity might be a string or object
+    if (typeof incident.severity === 'string') {
+      return incident.severity;
+    } else if (incident.severity?.name) {
+      return incident.severity.name;
+    } else if (incident.severity?.value) {
+      return incident.severity.value;
+    }
+    return 'Unknown';
+  }
+  
+  return 'Unknown';
+}
+
+/**
  * Create a navigation URL to the Tracking sheet with instructions
  */
 function createTrackingNavigationUrl(filterValue, dateBucket, filterType) {
@@ -1327,6 +1365,22 @@ function createReadmeSheet() {
       ['✅ INCLUDED Modes:', 'standard, retrospective'],
       ['❌ EXCLUDED Types:', '[TEST], [Preemptive SEV]'],
       [''],
+      ['🎯 SEVERITY FILTERING (NEW FEATURE)'],
+      [''],
+      ['CONFIGURATION: Set in Config sheet parameters:'],
+      ['• enableSeverityFiltering: true/false (enables/disables filtering)'],
+      ['• incidentioSeverities: Array of severities to include (e.g., SEV0,SEV1,SEV2)'],
+      ['• includeInternalImpact: true/false (includes Internal Impact variants)'],
+      ['• firehydrantSeverities: Array of severities to include (e.g., SEV0,SEV1,SEV2)'],
+      [''],
+      ['BEHAVIOR WHEN ENABLED:'],
+      ['✅ INCLUDED: Only incidents matching specified severity levels'],
+      ['✅ INTERNAL IMPACT: incident.io severities with "Internal Impact" suffix included if enabled'],
+      ['❌ EXCLUDED: All other severity levels filtered out'],
+      [''],
+      ['BEHAVIOR WHEN DISABLED:'],
+      ['✅ ALL SEVERITIES: No severity filtering applied (default behavior)'],
+      [''],
       ['📅 DATE BUCKET SYSTEM'],
       ['The system categorizes incidents into age-based buckets for reporting:'],
       [''],
@@ -1513,6 +1567,33 @@ function formatReadmeSheet(sheet) {
     console.error('❌ Error formatting README sheet:', error.toString());
     // Continue without formatting rather than failing
   }
+}
+
+/**
+ * Get severity filtering summary for display
+ */
+function getSeverityFilteringSummary(config) {
+  const severityFilteringEnabled = config.enableSeverityFiltering || false;
+  
+  if (!severityFilteringEnabled) {
+    return {
+      status: '🔍 Severity Filtering: DISABLED',
+      criteria: 'All severities included'
+    };
+  }
+  
+  const incidentioSeverities = config.incidentioSeverities || [];
+  const firehydrantSeverities = config.firehydrantSeverities || [];
+  const includeInternalImpact = config.includeInternalImpact !== false;
+  
+  const incidentioText = incidentioSeverities.length > 0 ? incidentioSeverities.join(',') : 'None';
+  const firehydrantText = firehydrantSeverities.length > 0 ? firehydrantSeverities.join(',') : 'None';
+  const internalText = includeInternalImpact ? ' (+Internal)' : '';
+  
+  return {
+    status: '🔍 Severity Filtering: ENABLED',
+    criteria: `incident.io: ${incidentioText}${internalText} | FireHydrant: ${firehydrantText}`
+  };
 }
 
 /**

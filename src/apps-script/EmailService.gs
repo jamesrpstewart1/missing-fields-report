@@ -332,6 +332,14 @@ function generateTieredEmailContent(buckets, summary) {
                 <tr><th>Recent Incidents (Last ${INCIDENT_FILTERING.dateRanges.emailFocus} Days)</th><td><strong>${buckets.emailFocus.length}</strong></td></tr>
                 <tr><th>Total Incidents Tracked</th><td><strong>${summary.totalIncidents}</strong></td></tr>`;
   
+  // Add severity filtering information
+  const config = getConfiguration();
+  const severityFilterInfo = getSeverityFilteringSummary(config);
+  html += `<tr><th>Severity Filtering</th><td>${severityFilterInfo.status}</td></tr>`;
+  if (config.enableSeverityFiltering) {
+    html += `<tr><th>Severity Criteria</th><td>${severityFilterInfo.criteria}</td></tr>`;
+  }
+
   // Add business unit breakdown for recent incidents
   if (buckets.emailFocus.length > 0) {
     const recentBusinessUnits = {};
@@ -442,7 +450,16 @@ function generateTieredPlainTextContent(buckets, summary) {
   
   text += `EXECUTIVE SUMMARY:\n`;
   text += `- Recent Incidents (Last ${INCIDENT_FILTERING.dateRanges.emailFocus} Days): ${buckets.emailFocus.length}\n`;
-  text += `- Total Incidents Tracked: ${summary.totalIncidents}\n\n`;
+  text += `- Total Incidents Tracked: ${summary.totalIncidents}\n`;
+  
+  // Add severity filtering information to plain text
+  const config = getConfiguration();
+  const severityFilterInfo = getSeverityFilteringSummary(config);
+  text += `- Severity Filtering: ${severityFilterInfo.status}\n`;
+  if (config.enableSeverityFiltering) {
+    text += `- Severity Criteria: ${severityFilterInfo.criteria}\n`;
+  }
+  text += `\n`;
   
   // Show bucket summary if there are older incidents
   if (buckets.bucket1.length > 0 || buckets.bucket2.length > 0 || buckets.bucket3.length > 0) {

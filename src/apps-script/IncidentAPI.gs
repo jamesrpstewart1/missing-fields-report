@@ -28,6 +28,16 @@ function fetchIncidentsFromIncidentIO(businessUnit, config) {
   
   console.log(`   📅 Using lookback period: ${maxLookbackDays} days (${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]})`);
   
+  // Check if severity filtering is enabled
+  const severityFilteringEnabled = config.enableSeverityFiltering || false;
+  const allowedSeverities = config.incidentioSeverities || ['SEV0', 'SEV1', 'SEV2', 'SEV3', 'SEV4'];
+  const includeInternalImpact = config.includeInternalImpact !== false; // Default to true
+  
+  if (severityFilteringEnabled) {
+    console.log(`   🔍 Severity filtering enabled - Including: ${allowedSeverities.join(', ')}`);
+    console.log(`   🔍 Include internal impact variants: ${includeInternalImpact}`);
+  }
+  
   const apiStartDateStr = formatDate(startDate);
   const apiEndDateStr = formatDate(endDate);
   
@@ -67,13 +77,23 @@ function fetchIncidentsFromIncidentIO(businessUnit, config) {
       }
       
       // Add platform and business unit info to each incident
-      const enrichedIncidents = data.incidents.map(incident => ({
+      let enrichedIncidents = data.incidents.map(incident => ({
         ...incident,
         platform: 'incident.io',
         businessUnit: capitalizeBusinessUnit(businessUnit),
         url: incident.permalink || `https://app.incident.io/incidents/${incident.id}`,
         slackUrl: getIncidentIOSlackUrl(incident)
       }));
+      
+      // Apply severity filtering if enabled
+      if (severityFilteringEnabled) {
+        const beforeFilterCount = enrichedIncidents.length;
+        enrichedIncidents = enrichedIncidents.filter(incident => 
+          matchesIncidentIOSeverity(incident, allowedSeverities, includeInternalImpact)
+        );
+        const afterFilterCount = enrichedIncidents.length;
+        console.log(`     🔍 Severity filter: ${beforeFilterCount} → ${afterFilterCount} incidents`);
+      }
       
       incidents.push(...enrichedIncidents);
       pageCount++;
@@ -124,6 +144,14 @@ function fetchIncidentsFromFireHydrant(businessUnit, config) {
   
   console.log(`   📅 Using lookback period: ${maxLookbackDays} days (${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]})`);
   
+  // Check if severity filtering is enabled
+  const severityFilteringEnabled = config.enableSeverityFiltering || false;
+  const allowedSeverities = config.firehydrantSeverities || ['SEV0', 'SEV1', 'SEV2', 'SEV3', 'SEV4'];
+  
+  if (severityFilteringEnabled) {
+    console.log(`   🔍 Severity filtering enabled - Including: ${allowedSeverities.join(', ')}`);
+  }
+  
   while (page <= maxPages) {
     const url = `${apiConfig.baseUrl}/incidents?page=${page}&per_page=100`;
     
@@ -152,7 +180,7 @@ function fetchIncidentsFromFireHydrant(businessUnit, config) {
       }
       
       // Filter by date range and add platform info
-      const filteredIncidents = data.data
+      let filteredIncidents = data.data
         .filter(incident => {
           const createdAt = new Date(incident.created_at);
           return createdAt >= startDate && createdAt <= endDate;
@@ -165,6 +193,16 @@ function fetchIncidentsFromFireHydrant(businessUnit, config) {
           url: incident.incident_url || `https://app.firehydrant.io/incidents/${incident.id}`,
           slackUrl: getFireHydrantSlackUrl(incident)
         }));
+      
+      // Apply severity filtering if enabled
+      if (severityFilteringEnabled) {
+        const beforeFilterCount = filteredIncidents.length;
+        filteredIncidents = filteredIncidents.filter(incident => 
+          matchesFireHydrantSeverity(incident, allowedSeverities)
+        );
+        const afterFilterCount = filteredIncidents.length;
+        console.log(`     🔍 Severity filter: ${beforeFilterCount} → ${afterFilterCount} incidents`);
+      }
       
       incidents.push(...filteredIncidents);
       page++;
@@ -557,6 +595,118 @@ function researchImpactStartTimestamp() {
 }
 
 /**
+ * Research function to explore severity field structures for filtering
+ */
+function researchSeverityFields() {
+  console.log('🔬 Researching severity field structures for filtering...');
+  
+  try {
+    const config = getConfiguration();
+    
+    // Research incident.io severity structure
+    console.log('\n--- incident.io Severity Research (Square) ---');
+    const squareIncidents = fetchIncidentsFromIncidentIO('square', config);
+    
+    if (squareIncidents.length > 0) {
+      console.log(`\n📊 Analyzing severity fields in ${Math.min(5, squareIncidents.length)} incidents:`);
+      
+      const severityData = new Set();
+      const impactData = new Set();
+      
+      squareIncidents.slice(0, 5).forEach((incident, index) => {
+        console.log(`\n🔍 Incident ${index + 1}: ${incident.reference}`);
+        
+        // Check severity field
+        if (incident.severity) {
+          const severityInfo = `${incident.severity.name || 'Unknown'} (ID: ${incident.severity.id || 'Unknown'})`;
+          severityData.add(severityInfo);
+          console.log(`   📊 Severity: ${severityInfo}`);
+        }
+        
+        // Check impact field  
+        if (incident.impact) {
+          const impactInfo = `${incident.impact.name || 'Unknown'} (ID: ${incident.impact.id || 'Unknown'})`;
+          impactData.add(impactInfo);
+          console.log(`   💥 Impact: ${impactInfo}`);
+        }
+        
+        // Look for other severity-related fields
+        Object.keys(incident).forEach(key => {
+          if (key.toLowerCase().includes('sev') || key.toLowerCase().includes('priority')) {
+            console.log(`   🔍 Found ${key}:`, incident[key]);
+          }
+        });
+      });
+      
+      console.log('\n📋 Summary of Severity Values Found:');
+      severityData.forEach(severity => console.log(`   - ${severity}`));
+      
+      console.log('\n📋 Summary of Impact Values Found:');
+      impactData.forEach(impact => console.log(`   - ${impact}`));
+    }
+    
+    // Research FireHydrant severity structure
+    console.log('\n--- FireHydrant Severity Research (Afterpay) ---');
+    const afterpayIncidents = fetchIncidentsFromFireHydrant('afterpay', config);
+    
+    if (afterpayIncidents.length > 0) {
+      console.log(`\n📊 Analyzing severity fields in ${Math.min(5, afterpayIncidents.length)} incidents:`);
+      
+      const fhSeverityData = new Set();
+      const fhPriorityData = new Set();
+      
+      afterpayIncidents.slice(0, 5).forEach((incident, index) => {
+        console.log(`\n🔍 Incident ${index + 1}: ${incident.reference}`);
+        
+        // Check common FireHydrant severity fields
+        if (incident.severity) {
+          const severityInfo = JSON.stringify(incident.severity);
+          fhSeverityData.add(severityInfo);
+          console.log(`   📊 Severity: ${severityInfo}`);
+        }
+        
+        if (incident.priority) {
+          const priorityInfo = JSON.stringify(incident.priority);
+          fhPriorityData.add(priorityInfo);
+          console.log(`   ⚡ Priority: ${priorityInfo}`);
+        }
+        
+        // Look for other severity-related fields
+        Object.keys(incident).forEach(key => {
+          if (key.toLowerCase().includes('sev') || key.toLowerCase().includes('priority') || key.toLowerCase().includes('impact')) {
+            console.log(`   🔍 Found ${key}:`, incident[key]);
+          }
+        });
+      });
+      
+      console.log('\n📋 Summary of FireHydrant Severity Values:');
+      fhSeverityData.forEach(severity => console.log(`   - ${severity}`));
+      
+      console.log('\n📋 Summary of FireHydrant Priority Values:');
+      fhPriorityData.forEach(priority => console.log(`   - ${priority}`));
+    }
+    
+    // Show results in UI
+    const ui = SpreadsheetApp.getUi();
+    ui.alert(
+      '🔬 Severity Fields Research Complete',
+      'Research of severity field structures complete. Check the Apps Script logs for detailed field information and available severity values.',
+      ui.ButtonSet.OK
+    );
+    
+  } catch (error) {
+    console.error('❌ Severity research failed:', error.toString());
+    
+    const ui = SpreadsheetApp.getUi();
+    ui.alert(
+      '❌ Research Failed',
+      `Severity research failed:\n\n${error.toString()}`,
+      ui.ButtonSet.OK
+    );
+  }
+}
+
+/**
  * Research function to explore all available timestamp types
  */
 function researchTimestampTypes() {
@@ -617,6 +767,58 @@ function researchTimestampTypes() {
       ui.ButtonSet.OK
     );
   }
+}
+
+/**
+ * Check if incident.io incident matches severity filter
+ */
+function matchesIncidentIOSeverity(incident, allowedSeverities, includeInternalImpact) {
+  if (!incident.severity || !incident.severity.name) {
+    return false; // No severity data, exclude
+  }
+  
+  const severityName = incident.severity.name;
+  
+  // Check for direct severity match
+  if (allowedSeverities.includes(severityName)) {
+    return true;
+  }
+  
+  // Check for internal impact variants if enabled
+  if (includeInternalImpact) {
+    // Look for patterns like "SEV1 (Internal Impact)" or "SEV2 - Internal Impact"
+    const baseSeverity = severityName.match(/^(SEV\d+)/i);
+    if (baseSeverity && allowedSeverities.includes(baseSeverity[1].toUpperCase())) {
+      const isInternalImpact = severityName.toLowerCase().includes('internal');
+      if (isInternalImpact) {
+        return true;
+      }
+    }
+  }
+  
+  return false;
+}
+
+/**
+ * Check if FireHydrant incident matches severity filter
+ */
+function matchesFireHydrantSeverity(incident, allowedSeverities) {
+  if (!incident.severity) {
+    return false; // No severity data, exclude
+  }
+  
+  // FireHydrant severity might be a string or object
+  let severityName = '';
+  if (typeof incident.severity === 'string') {
+    severityName = incident.severity;
+  } else if (incident.severity.name) {
+    severityName = incident.severity.name;
+  } else if (incident.severity.value) {
+    severityName = incident.severity.value;
+  }
+  
+  // Check if severity matches allowed list
+  return allowedSeverities.includes(severityName);
 }
 
 /**
