@@ -3,7 +3,7 @@
 ## Overview
 **Production-ready automated system** to monitor and report missing required fields across incident.io and FireHydrant platforms, with daily email notifications to ensure incident data completeness.
 
-## 🎉 Version 2.1.0 - Now Available!
+## 🎉 Version 2.2.0 - Now Available!
 
 ### ✅ Core Functionality
 - **Daily automated check** of incident fields across incident.io and FireHydrant
@@ -11,6 +11,7 @@
 - **Track incidents** until fields are completed
 - **Performance optimized** - 69 second execution time
 - **Comprehensive reporting** with Summary dashboard
+- **🎯 NEW: Severity filtering** - Focus on critical incidents by severity level
 
 ### 📋 Required Fields Monitored (5 Total)
 - **Affected Markets**
@@ -92,6 +93,13 @@ missing-fields-report/
 - **Multi-Platform**: Different validation logic for each platform
 - **Accurate Detection**: Zero false positives
 
+### 🎯 Severity Filtering (NEW!)
+- **Configurable Filtering**: Focus on specific severity levels (SEV0, SEV1, SEV2, etc.)
+- **Platform-Specific**: Different severity configurations for incident.io and FireHydrant
+- **Internal Impact Support**: Handle incident.io "Internal Impact" severity variants
+- **Dashboard Integration**: Severity status displayed in Summary and Email reports
+- **Flexible Configuration**: Enable/disable filtering via Config sheet parameters
+
 ## 🛠️ Technical Architecture
 
 ### Core Components
@@ -156,6 +164,6 @@ missing-fields-report/
 
 ---
 
-**Version**: 2.1.0  
-**Last Updated**: January 9, 2025  
+**Version**: 2.2.0  
+**Last Updated**: September 9, 2025  
 **Status**: Production Ready ✅

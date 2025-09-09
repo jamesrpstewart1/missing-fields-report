@@ -7,6 +7,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0] - 2025-09-09
+
+### Added
+- **🎯 Severity Filtering System**: Comprehensive severity-based incident filtering
+  - Configurable severity level filtering for both incident.io and FireHydrant platforms
+  - Platform-specific severity configurations with granular control
+  - Support for incident.io "Internal Impact" severity variants
+  - Enable/disable functionality via Config sheet parameters
+
+### Enhanced
+- **📊 Summary Tab**: Added severity filtering status and criteria display in Executive Summary
+- **📧 Email Reports**: Enhanced email notifications with severity filtering information
+  - HTML and plain text formats include filtering status and criteria
+  - Clear indication of enabled/disabled state and impact
+- **📋 Tracking Sheet**: New Severity column for better incident visibility
+  - Cross-platform severity extraction with `getIncidentSeverity()` function
+  - Updated headers and formatting for enhanced data presentation
+
+### Technical Implementation
+- **New Functions**:
+  - `matchesIncidentIOSeverity()`: Platform-specific severity matching for incident.io
+  - `matchesFireHydrantSeverity()`: Platform-specific severity matching for FireHydrant
+  - `getSeverityFilteringSummary()`: Consistent severity status reporting
+  - `getIncidentSeverity()`: Cross-platform severity extraction
+- **Enhanced Functions**:
+  - Updated `fetchIncidentsFromIncidentIO()` and `fetchIncidentsFromFireHydrant()` with filtering logic
+  - Enhanced `updateTrackingSheet()` with severity column support
+  - Improved `generateTieredEmailContent()` with severity information
+
+### Configuration
+- **New Config Parameters**:
+  - `enableSeverityFiltering`: Boolean to enable/disable severity filtering
+  - `incidentioSeverities`: Array of incident.io severities to include (e.g., SEV0,SEV1,SEV2)
+  - `includeInternalImpact`: Boolean to include Internal Impact severity variants
+  - `firehydrantSeverities`: Array of FireHydrant severities to include
+- **Backward Compatibility**: All new features disabled by default, maintaining existing behavior
+
+### Testing & Validation
+- **New Testing Function**: `testSeverityFiltering()` for comprehensive severity filtering validation
+- **Menu Integration**: Added severity filtering test to Testing & Research submenu
+- **Detailed Logging**: Enhanced logging for severity filtering decisions and impact
+
+### Documentation
+- **Enhanced README Sheet**: Comprehensive severity filtering documentation
+  - Configuration examples and parameter descriptions
+  - Behavior explanations for enabled/disabled states
+  - Troubleshooting guidance for severity filtering issues
+- **Updated Project Documentation**: README.md updated with severity filtering capabilities
+
+### Files Modified
+- `src/apps-script/Config.gs`: Core configuration management and utility functions
+- `src/apps-script/IncidentAPI.gs`: Platform-specific filtering logic implementation
+- `src/apps-script/EmailService.gs`: Email template enhancements with severity info
+- `src/apps-script/Code.gs`: Testing functions and menu system updates
+
 ## [2.1.0] - 2025-01-09
 
 ### Added
