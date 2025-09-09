@@ -1358,6 +1358,376 @@ function createDrillDownLink(businessUnit, dateBucket) {
 }
 
 /**
+ * Create README sheet with comprehensive documentation - Simplified version
+ */
+function createReadmeSheetSimple() {
+  console.log('📚 Creating README sheet (simplified)...');
+  
+  try {
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    
+    // Check if README sheet already exists
+    let readmeSheet = spreadsheet.getSheetByName('README');
+    if (readmeSheet) {
+      // Clear existing content
+      readmeSheet.clear();
+    } else {
+      // Create new README sheet
+      readmeSheet = spreadsheet.insertSheet('README');
+    }
+    
+    // Write content in smaller batches to avoid errors
+    writeReadmeContent(readmeSheet);
+    
+    console.log('✅ README sheet created successfully');
+    
+    // Show success message
+    const ui = SpreadsheetApp.getUi();
+    ui.alert(
+      '📚 README Sheet Updated',
+      'README sheet has been successfully updated with v2.2.0 information!',
+      ui.ButtonSet.OK
+    );
+    
+  } catch (error) {
+    console.error('❌ Failed to create README sheet:', error.toString());
+    
+    const ui = SpreadsheetApp.getUi();
+    ui.alert(
+      '❌ README Creation Failed',
+      `Failed to create README sheet:\n\n${error.toString()}`,
+      ui.ButtonSet.OK
+    );
+  }
+}
+
+/**
+ * Write README content in smaller batches
+ */
+function writeReadmeContent(sheet) {
+  // Write content in smaller sections to avoid execution limits
+  
+  // Section 1: Header and Overview
+  const section1 = [
+    ['📚 MISSING FIELDS REPORT - SYSTEM DOCUMENTATION'],
+    [''],
+    ['🎯 SYSTEM OVERVIEW'],
+    ['This automated system monitors incidents across incident.io and FireHydrant platforms'],
+    ['to identify missing required fields and send daily email notifications.'],
+    [''],
+    ['⚙️ HOW IT WORKS'],
+    ['1. Daily at 9:00 AM, the system automatically fetches incidents from all platforms'],
+    ['2. Filters incidents based on specific criteria (status, type, mode)'],
+    ['3. Validates required fields for each business unit'],
+    ['4. Sends email notifications for incidents with missing fields'],
+    ['5. Updates tracking sheets with current data']
+  ];
+  
+  sheet.getRange(1, 1, section1.length, 1).setValues(section1);
+  
+  // Section 2: Business Unit Mapping
+  const section2 = [
+    [''],
+    ['🏢 BUSINESS UNIT & PLATFORM MAPPING'],
+    ['Business Unit', 'Platform', 'API Source', 'Required Fields'],
+    ['Square', 'incident.io', 'api.incident.io/v2', 'Affected Markets, Causal Type, Stabilization Type, Impact Start Date, Transcript URL'],
+    ['Cash', 'incident.io', 'api.incident.io/v2', 'Affected Markets, Causal Type, Stabilization Type, Impact Start Date, Transcript URL'],
+    ['Afterpay', 'FireHydrant', 'api.firehydrant.io/v1', 'Market']
+  ];
+  
+  const startRow2 = section1.length + 1;
+  sheet.getRange(startRow2, 1, section2.length, 4).setValues(section2.map(row => {
+    while (row.length < 4) row.push('');
+    return row;
+  }));
+  
+  // Section 3: Filtering Criteria
+  const section3 = [
+    [''],
+    ['🔍 FILTERING CRITERIA'],
+    [''],
+    ['INCIDENT.IO FILTERING (Square & Cash):'],
+    ['✅ INCLUDED Statuses: Stabilized, Postmortem Prep, Postmortem Meeting Prep, Closed'],
+    ['✅ INCLUDED Modes: standard, retrospective'],
+    ['❌ EXCLUDED Types: [TEST], [Preemptive SEV]'],
+    [''],
+    ['FIREHYDRANT FILTERING (Afterpay):'],
+    ['✅ INCLUDED Statuses: Stabilized, Remediation, Resolved, Retrospective Started, Retrospective Completed, Closed'],
+    ['✅ INCLUDED Modes: standard, retrospective'],
+    ['❌ EXCLUDED Types: [TEST], [Preemptive SEV]']
+  ];
+  
+  const startRow3 = startRow2 + section2.length;
+  sheet.getRange(startRow3, 1, section3.length, 1).setValues(section3);
+  
+  // Section 4: Severity Filtering
+  const section4 = [
+    [''],
+    ['🎯 SEVERITY FILTERING (NEW FEATURE)'],
+    [''],
+    ['CONFIGURATION: Set in Config sheet parameters:'],
+    ['• enableSeverityFiltering: true/false (enables/disables filtering)'],
+    ['• incidentioSeverities: Array of severities to include (e.g., SEV0,SEV1,SEV2)'],
+    ['• includeInternalImpact: true/false (includes Internal Impact variants)'],
+    ['• firehydrantSeverities: Array of severities to include (e.g., SEV0,SEV1,SEV2)'],
+    [''],
+    ['BEHAVIOR WHEN ENABLED:'],
+    ['✅ INCLUDED: Only incidents matching specified severity levels'],
+    ['✅ INTERNAL IMPACT: incident.io severities with "Internal Impact" suffix included if enabled'],
+    ['❌ EXCLUDED: All other severity levels filtered out'],
+    [''],
+    ['BEHAVIOR WHEN DISABLED:'],
+    ['✅ ALL SEVERITIES: No severity filtering applied (default behavior)']
+  ];
+  
+  const startRow4 = startRow3 + section3.length;
+  sheet.getRange(startRow4, 1, section4.length, 1).setValues(section4);
+  
+  // Continue with remaining sections...
+  writeReadmeContentPart2(sheet, startRow4 + section4.length);
+}
+
+/**
+ * Write remaining README content
+ */
+function writeReadmeContentPart2(sheet, startRow) {
+  // Section 5: Date Bucket System
+  const section5 = [
+    [''],
+    ['📅 DATE BUCKET SYSTEM'],
+    ['The system categorizes incidents into age-based buckets for reporting:'],
+    [''],
+    ['Bucket', 'Age Range', 'Email Treatment', 'Purpose'],
+    ['0-7 days', 'Last 7 days', 'Full details shown', 'Immediate action required'],
+    ['7-30 days', '7-30 days old', 'Count summary only', 'Recent but not urgent'],
+    ['30-90 days', '30-90 days old', 'Count summary only', 'Older incidents'],
+    ['90+ days', '90+ days old', 'Count summary only', 'Historical tracking']
+  ];
+  
+  sheet.getRange(startRow, 1, section5.length, 4).setValues(section5.map(row => {
+    while (row.length < 4) row.push('');
+    return row;
+  }));
+  
+  // Section 6: Manual Actions
+  const section6 = [
+    [''],
+    ['🔧 MANUAL ACTIONS'],
+    [''],
+    ['🔄 Check Missing Fields Now: Run immediate check and update all sheets'],
+    ['📧 Send Test Email: Send test notification to verify email delivery'],
+    ['🔧 Setup Daily Automation: Configure daily 9 AM automated checks'],
+    ['🛑 Cancel Daily Automation: Disable automated daily checks'],
+    ['📊 Show Automation Status: View current automation trigger status'],
+    ['🔗 Test API Connections: Verify connectivity to all platforms']
+  ];
+  
+  const startRow6 = startRow + section5.length;
+  sheet.getRange(startRow6, 1, section6.length, 1).setValues(section6);
+  
+  // Section 7: System Information
+  const section7 = [
+    [''],
+    ['📋 SYSTEM INFORMATION'],
+    [''],
+    ['Version: v2.2.0'],
+    ['Last Updated: ' + new Date().toLocaleDateString()],
+    ['Platforms: incident.io (Square, Cash), FireHydrant (Afterpay)'],
+    ['Data Retention: 365 days (12 months)'],
+    ['Email Focus: Last 7 days (detailed), older incidents summarized'],
+    ['Update Frequency: Daily at 9:00 AM']
+  ];
+  
+  const startRow7 = startRow6 + section6.length;
+  sheet.getRange(startRow7, 1, section7.length, 1).setValues(section7);
+  
+  // Apply basic formatting
+  formatReadmeSheetSimple(sheet);
+}
+
+/**
+ * Apply basic formatting to README sheet
+ */
+function formatReadmeSheetSimple(sheet) {
+  try {
+    // Set column widths
+    sheet.setColumnWidth(1, 400);
+    sheet.setColumnWidth(2, 250);
+    sheet.setColumnWidth(3, 150);
+    sheet.setColumnWidth(4, 200);
+    
+    // Format title (Row 1)
+    sheet.getRange('A1').setBackground('#1f4e79')
+                        .setFontColor('#ffffff')
+                        .setFontWeight('bold')
+                        .setFontSize(16);
+    
+    console.log('✅ Basic formatting applied');
+    
+  } catch (error) {
+    console.log('⚠️ Formatting failed, but content was written:', error.toString());
+  }
+}
+
+/**
+ * Apply comprehensive formatting to README sheet (run separately after content is written)
+ */
+function formatReadmeSheetComprehensive() {
+  console.log('🎨 Applying comprehensive formatting to README sheet...');
+  
+  try {
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = spreadsheet.getSheetByName('README');
+    
+    if (!sheet) {
+      throw new Error('README sheet not found');
+    }
+    
+    const lastRow = sheet.getLastRow();
+    const lastCol = sheet.getLastColumn();
+    
+    if (lastRow === 0 || lastCol === 0) {
+      throw new Error('No data in README sheet to format');
+    }
+    
+    console.log(`📊 Formatting ${lastRow} rows and ${lastCol} columns`);
+    
+    // Set column widths
+    sheet.setColumnWidth(1, 450); // Main content - wider for readability
+    sheet.setColumnWidth(2, 280); // Secondary content
+    sheet.setColumnWidth(3, 180); // Tertiary content
+    sheet.setColumnWidth(4, 220); // Additional content
+    
+    // Format title (Row 1)
+    const titleRange = sheet.getRange(1, 1, 1, Math.min(4, lastCol));
+    titleRange.merge()
+             .setBackground('#1f4e79')
+             .setFontColor('#ffffff')
+             .setFontWeight('bold')
+             .setFontSize(18)
+             .setHorizontalAlignment('center')
+             .setVerticalAlignment('middle');
+    
+    // Find and format section headers (rows that start with emoji)
+    console.log('🔍 Finding and formatting section headers...');
+    for (let row = 1; row <= lastRow; row++) {
+      try {
+        const cellValue = sheet.getRange(row, 1).getValue().toString();
+        
+        // Check if this is a section header (starts with emoji)
+        if (cellValue.match(/^[🎯⚙️🏢🔍📅📊📧🔧🛠️🗺️📋]/)) {
+          const headerRange = sheet.getRange(row, 1, 1, Math.min(4, lastCol));
+          headerRange.setBackground('#4285f4')
+                     .setFontColor('#ffffff')
+                     .setFontWeight('bold')
+                     .setFontSize(14);
+          console.log(`   ✅ Formatted section header: ${cellValue.substring(0, 30)}...`);
+        }
+        
+        // Check if this is a table header row
+        if (cellValue === 'Business Unit' || cellValue === 'Bucket' || 
+            cellValue === 'Required Field' || cellValue.includes('INCLUDED') || 
+            cellValue.includes('EXCLUDED')) {
+          const headerRange = sheet.getRange(row, 1, 1, Math.min(4, lastCol));
+          headerRange.setBackground('#e8f0fe')
+                     .setFontWeight('bold')
+                     .setHorizontalAlignment('center')
+                     .setBorder(true, true, true, true, true, true, '#4285f4', SpreadsheetApp.BorderStyle.SOLID);
+          console.log(`   ✅ Formatted table header: ${cellValue}`);
+        }
+        
+        // Format configuration bullet points
+        if (cellValue.startsWith('•') || cellValue.startsWith('✅') || cellValue.startsWith('❌')) {
+          sheet.getRange(row, 1).setFontWeight('bold');
+        }
+        
+      } catch (error) {
+        // Skip problematic rows
+        console.log(`⚠️ Skipping formatting for row ${row}: ${error.toString()}`);
+      }
+    }
+    
+    // Format specific known sections
+    console.log('🎨 Applying section-specific formatting...');
+    
+    // Format business unit mapping table (look for the table)
+    for (let row = 1; row <= lastRow; row++) {
+      const cellValue = sheet.getRange(row, 1).getValue().toString();
+      if (cellValue === 'Square' || cellValue === 'Cash' || cellValue === 'Afterpay') {
+        // This is likely the business unit table
+        const tableRange = sheet.getRange(row, 1, 1, 4);
+        tableRange.setBorder(true, true, true, true, true, true, '#cccccc', SpreadsheetApp.BorderStyle.SOLID);
+        
+        // Color code by business unit
+        if (cellValue === 'Square') {
+          tableRange.setBackground('#fff2cc'); // Light yellow
+        } else if (cellValue === 'Cash') {
+          tableRange.setBackground('#d9ead3'); // Light green
+        } else if (cellValue === 'Afterpay') {
+          tableRange.setBackground('#cfe2f3'); // Light blue
+        }
+      }
+    }
+    
+    // Format date bucket table
+    for (let row = 1; row <= lastRow; row++) {
+      const cellValue = sheet.getRange(row, 1).getValue().toString();
+      if (cellValue === '0-7 days' || cellValue === '7-30 days' || 
+          cellValue === '30-90 days' || cellValue === '90+ days') {
+        const tableRange = sheet.getRange(row, 1, 1, 4);
+        tableRange.setBorder(true, true, true, true, true, true, '#cccccc', SpreadsheetApp.BorderStyle.SOLID);
+        
+        // Color code by urgency
+        if (cellValue === '0-7 days') {
+          tableRange.setBackground('#fce5cd'); // Light orange (urgent)
+        } else if (cellValue === '7-30 days') {
+          tableRange.setBackground('#fff2cc'); // Light yellow
+        } else {
+          tableRange.setBackground('#f4cccc'); // Light red (older)
+        }
+      }
+    }
+    
+    // Remove gridlines
+    sheet.setHiddenGridlines(true);
+    
+    // Add border around entire content
+    if (lastRow > 0 && lastCol > 0) {
+      sheet.getRange(1, 1, lastRow, Math.min(4, lastCol))
+           .setBorder(true, true, true, true, false, false, '#1f4e79', SpreadsheetApp.BorderStyle.SOLID_THICK);
+    }
+    
+    // Freeze first row
+    sheet.setFrozenRows(1);
+    
+    console.log('✅ Comprehensive formatting applied successfully');
+    
+    // Show success message
+    const ui = SpreadsheetApp.getUi();
+    ui.alert(
+      '🎨 README Formatting Complete',
+      'Beautiful formatting has been applied to your README sheet!\n\n' +
+      '• Section headers highlighted in blue\n' +
+      '• Business units color-coded\n' +
+      '• Date buckets color-coded by urgency\n' +
+      '• Table borders and styling applied\n' +
+      '• Professional layout restored',
+      ui.ButtonSet.OK
+    );
+    
+  } catch (error) {
+    console.error('❌ Failed to format README sheet:', error.toString());
+    
+    const ui = SpreadsheetApp.getUi();
+    ui.alert(
+      '❌ Formatting Failed',
+      `Failed to format README sheet:\n\n${error.toString()}\n\nThe content is there, but formatting needs to be applied manually.`,
+      ui.ButtonSet.OK
+    );
+  }
+}
+
+/**
  * Create README sheet with comprehensive documentation
  */
 function createReadmeSheet() {
