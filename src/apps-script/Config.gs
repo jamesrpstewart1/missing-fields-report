@@ -217,10 +217,12 @@ function updateSummarySheet(incidentsWithMissingFields) {
     const analysis = analyzeIncidents(incidentsWithMissingFields);
     const timestamp = new Date().toLocaleString();
     
-    // Calculate totals
+    // Calculate totals - get dynamic total based on maxLookbackDays
     const totalMissing = incidentsWithMissingFields.length;
-    const totalIncidents = 5240; // This should come from total API results in the future
-    const missingPercentage = ((totalMissing / totalIncidents) * 100).toFixed(1);
+    const config = getConfiguration();
+    const lookbackDays = config.maxLookbackDays || 30;
+    const totalIncidents = analysis.totalIncidentsProcessed || totalMissing; // Will be set by the calling function
+    const missingPercentage = totalIncidents > 0 ? ((totalMissing / totalIncidents) * 100).toFixed(1) : '0.0';
     
     // Build the complete enhanced summary layout
     const summaryData = [
@@ -233,7 +235,7 @@ function updateSummarySheet(incidentsWithMissingFields) {
       ['', '', '', '', '', '', '', ''],
       
       // Row 5-8: Executive Summary Data
-      [`Total Incidents (365 days): ${totalIncidents.toLocaleString()}`, '', '', `Missing Fields: ${totalMissing.toLocaleString()} (${missingPercentage}%)`, '', '', '', ''],
+      [`Total Incidents (${lookbackDays} days): ${totalIncidents.toLocaleString()}`, '', '', `Missing Fields: ${totalMissing.toLocaleString()} (${missingPercentage}%)`, '', '', '', ''],
       [`Critical (90+ days): ${analysis.buckets['90+ days'].length.toLocaleString()}`, '', '', `Urgent (0-7 days): ${analysis.buckets['0-7 days'].length.toLocaleString()}`, '', '', '', ''],
       [`Business Units: Square, Cash, Afterpay`, '', '', `Platforms: incident.io, FireHydrant`, '', '', '', ''],
       ['', '', '', '', '', '', '', ''],
@@ -317,7 +319,9 @@ function analyzeIncidents(incidents) {
     missingFields: {
       'Affected Markets': { '0-7 days': 0, '7-30 days': 0, '30-90 days': 0, '90+ days': 0 },
       'Causal Type': { '0-7 days': 0, '7-30 days': 0, '30-90 days': 0, '90+ days': 0 },
-      'Stabilization Type': { '0-7 days': 0, '7-30 days': 0, '30-90 days': 0, '90+ days': 0 }
+      'Stabilization Type': { '0-7 days': 0, '7-30 days': 0, '30-90 days': 0, '90+ days': 0 },
+      'Impact Start Date': { '0-7 days': 0, '7-30 days': 0, '30-90 days': 0, '90+ days': 0 },
+      'Transcript URL': { '0-7 days': 0, '7-30 days': 0, '30-90 days': 0, '90+ days': 0 }
     }
   };
   
@@ -480,14 +484,14 @@ function buildBusinessUnitRows(analysis) {
  * Build missing field rows for the summary
  */
 function buildMissingFieldRows(analysis) {
-  const fieldTypes = ['Affected Markets', 'Causal Type', 'Stabilization Type'];
+  const fieldTypes = ['Affected Markets', 'Causal Type', 'Stabilization Type', 'Impact Start Date', 'Transcript URL'];
   const buckets = ['0-7 days', '7-30 days', '30-90 days', '90+ days'];
   const rows = [];
   
   let grandTotal = 0;
   fieldTypes.forEach(field => {
     buckets.forEach(bucket => {
-      grandTotal += analysis.missingFields[field][bucket];
+      grandTotal += (analysis.missingFields[field] ? analysis.missingFields[field][bucket] : 0);
     });
   });
   
@@ -496,7 +500,7 @@ function buildMissingFieldRows(analysis) {
     let fieldTotal = 0;
     
     buckets.forEach(bucket => {
-      const count = analysis.missingFields[field][bucket];
+      const count = analysis.missingFields[field] ? analysis.missingFields[field][bucket] : 0;
       row.push(count);
       fieldTotal += count;
     });
@@ -513,7 +517,7 @@ function buildMissingFieldRows(analysis) {
   const totalRow = ['TOTAL'];
   buckets.forEach(bucket => {
     const bucketTotal = fieldTypes.reduce((sum, field) => 
-      sum + analysis.missingFields[field][bucket], 0);
+      sum + (analysis.missingFields[field] ? analysis.missingFields[field][bucket] : 0), 0);
     totalRow.push(bucketTotal);
   });
   totalRow.push(grandTotal);
@@ -662,40 +666,41 @@ function formatEnhancedSummarySheet(sheet, totalRows) {
                            .setHorizontalAlignment('center')
                            .setBorder(true, true, true, true, true, true, '#4285f4', SpreadsheetApp.BorderStyle.SOLID);
   
-  // Format missing field data rows (Rows 20-23)
-  sheet.getRange('A20:G23').setBorder(true, true, true, true, true, true, '#cccccc', SpreadsheetApp.BorderStyle.SOLID);
+  // Format missing field data rows (Rows 20-25) - updated to include new fields
+  sheet.getRange('A20:G25').setBorder(true, true, true, true, true, true, '#cccccc', SpreadsheetApp.BorderStyle.SOLID);
   
-  // Format missing field totals row (Row 23)
-  sheet.getRange('A23:G23').setBackground('#f8f9fa')
-                           .setFontWeight('bold');
+  // Format missing field totals row (Row 25) - updated row number
+  sheet.getRange('A25:G25').setBackground('#f8f9fa')
+                           .setFontWeight('bold')
+                           .setFontColor('#000000'); // Ensure text is black and readable
   
-  // Format platform section header (Row 25)
-  sheet.getRange('A25:H25').setBackground('#9c27b0')
+  // Format platform section header (Row 27) - updated row number
+  sheet.getRange('A27:H27').setBackground('#9c27b0')
                            .setFontColor('#ffffff')
                            .setFontWeight('bold')
                            .setFontSize(12);
   
-  // Format platform table headers (Row 27)
-  sheet.getRange('A27:G27').setBackground('#e8f0fe')
+  // Format platform table headers (Row 29) - updated row number
+  sheet.getRange('A29:G29').setBackground('#e8f0fe')
                            .setFontWeight('bold')
                            .setHorizontalAlignment('center')
                            .setBorder(true, true, true, true, true, true, '#4285f4', SpreadsheetApp.BorderStyle.SOLID);
   
-  // Format platform data rows (Rows 28-30)
-  sheet.getRange('A28:G30').setBorder(true, true, true, true, true, true, '#cccccc', SpreadsheetApp.BorderStyle.SOLID);
+  // Format platform data rows (Rows 30-32) - updated row numbers
+  sheet.getRange('A30:G32').setBorder(true, true, true, true, true, true, '#cccccc', SpreadsheetApp.BorderStyle.SOLID);
   
-  // Format platform totals row (Row 30)
-  sheet.getRange('A30:G30').setBackground('#f8f9fa')
+  // Format platform totals row (Row 32) - updated row number
+  sheet.getRange('A32:G32').setBackground('#f8f9fa')
                            .setFontWeight('bold');
   
-  // Format instructions section header (Row 32) - moved to bottom
-  sheet.getRange('A32:H32').setBackground('#ffc107')
+  // Format instructions section header (Row 34) - moved to bottom
+  sheet.getRange('A34:H34').setBackground('#ffc107')
                            .setFontColor('#000000')
                            .setFontWeight('bold')
                            .setFontSize(12);
   
-  // Format instructions text (Rows 33-38) - moved to bottom
-  sheet.getRange('A33:H38').setBackground('#fffbf0')
+  // Format instructions text (Rows 35-40) - moved to bottom
+  sheet.getRange('A35:H40').setBackground('#fffbf0')
                            .setFontStyle('italic');
   
   // Center align all numeric data

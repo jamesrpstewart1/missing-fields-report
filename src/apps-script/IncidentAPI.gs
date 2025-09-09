@@ -20,10 +20,13 @@ function fetchIncidentsFromIncidentIO(businessUnit, config) {
   let pageCount = 0;
   const maxPages = 20; // Safety limit
   
-  // Calculate date range based on finalized configuration (365 days to capture all buckets including 90+)
+  // Calculate date range based on configuration from Google Sheets
   const endDate = new Date();
   const startDate = new Date();
-  startDate.setDate(startDate.getDate() - INCIDENT_FILTERING.dateRanges.maxLookback);
+  const maxLookbackDays = config.maxLookbackDays || INCIDENT_FILTERING.dateRanges.maxLookback;
+  startDate.setDate(startDate.getDate() - maxLookbackDays);
+  
+  console.log(`   📅 Using lookback period: ${maxLookbackDays} days (${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]})`);
   
   const apiStartDateStr = formatDate(startDate);
   const apiEndDateStr = formatDate(endDate);
@@ -113,10 +116,13 @@ function fetchIncidentsFromFireHydrant(businessUnit, config) {
   let page = 1;
   const maxPages = 20; // Safety limit
   
-  // Calculate date range based on finalized configuration (365 days to capture all buckets including 90+)
+  // Calculate date range based on configuration from Google Sheets
   const endDate = new Date();
   const startDate = new Date();
-  startDate.setDate(startDate.getDate() - INCIDENT_FILTERING.dateRanges.maxLookback);
+  const maxLookbackDays = config.maxLookbackDays || INCIDENT_FILTERING.dateRanges.maxLookback;
+  startDate.setDate(startDate.getDate() - maxLookbackDays);
+  
+  console.log(`   📅 Using lookback period: ${maxLookbackDays} days (${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]})`);
   
   while (page <= maxPages) {
     const url = `${apiConfig.baseUrl}/incidents?page=${page}&per_page=100`;
@@ -302,31 +308,314 @@ function getFireHydrantSlackUrl(incident) {
 }
 
 /**
- * Debug function to log incident fields (helps find Slack link field names)
+ * Debug function to log incident fields (helps find new field names)
  */
 function debugIncidentFields() {
-  console.log('🔍 Debug: Fetching sample incidents to find Slack link fields...');
+  console.log('🔍 Debug: Fetching sample incidents to find new field names...');
   
   try {
     const config = getConfiguration();
     
-    // Get a few sample incidents from each platform
-    console.log('--- incident.io Sample ---');
+    // Get a few sample incidents from incident.io to examine field structure
+    console.log('--- incident.io Sample for New Fields Research ---');
     const squareIncidents = fetchIncidentsFromIncidentIO('square', config);
     if (squareIncidents.length > 0) {
+      const incident = squareIncidents[0];
       console.log('Sample incident.io incident fields:');
-      console.log(JSON.stringify(squareIncidents[0], null, 2));
-    }
-    
-    console.log('--- FireHydrant Sample ---');
-    const afterpayIncidents = fetchIncidentsFromFireHydrant('afterpay', config);
-    if (afterpayIncidents.length > 0) {
-      console.log('Sample FireHydrant incident fields:');
-      console.log(JSON.stringify(afterpayIncidents[0], null, 2));
+      console.log('ID:', incident.id);
+      console.log('Reference:', incident.reference);
+      console.log('Created At:', incident.created_at);
+      
+      // Look for Impact Start Date and Time fields
+      console.log('\n🔍 Searching for Impact Start Date fields:');
+      console.log('impact_start_date:', incident.impact_start_date);
+      console.log('impact_started_at:', incident.impact_started_at);
+      console.log('started_at:', incident.started_at);
+      console.log('impact_override:', incident.impact_override);
+      
+      // Look for Incident Transcript URL fields
+      console.log('\n🔍 Searching for Incident Transcript URL fields:');
+      console.log('transcript_url:', incident.transcript_url);
+      console.log('incident_transcript_url:', incident.incident_transcript_url);
+      console.log('postmortem_document_url:', incident.postmortem_document_url);
+      console.log('call_url:', incident.call_url);
+      console.log('meeting_url:', incident.meeting_url);
+      
+      // Check custom fields for these values too
+      console.log('\n🔍 Checking custom fields:');
+      if (incident.custom_field_entries) {
+        incident.custom_field_entries.forEach(entry => {
+          const fieldName = entry.custom_field?.name || '';
+          if (fieldName.toLowerCase().includes('impact') && fieldName.toLowerCase().includes('start') ||
+              fieldName.toLowerCase().includes('transcript') ||
+              fieldName.toLowerCase().includes('call') ||
+              fieldName.toLowerCase().includes('meeting')) {
+            console.log(`Custom field "${fieldName}":`, entry.values);
+          }
+        });
+      }
+      
+      // Show full structure for manual inspection (truncated)
+      console.log('\n📋 Full incident structure (first 20 keys):');
+      const keys = Object.keys(incident).slice(0, 20);
+      keys.forEach(key => {
+        console.log(`${key}:`, typeof incident[key], incident[key] ? 'HAS_VALUE' : 'NULL/EMPTY');
+      });
     }
     
   } catch (error) {
     console.error('Debug failed:', error.toString());
+  }
+}
+
+/**
+ * Research specific field names for new requirements
+ */
+function researchNewFieldNames() {
+  console.log('🔬 Researching new field names for Phase 1 requirements...');
+  
+  try {
+    const config = getConfiguration();
+    
+    // Fetch recent incidents from both Square and Cash
+    console.log('--- Researching Square incidents ---');
+    const squareIncidents = fetchIncidentsFromIncidentIO('square', config);
+    
+    console.log('--- Researching Cash incidents ---');
+    const cashIncidents = fetchIncidentsFromIncidentIO('cash', config);
+    
+    const allIncidents = [...squareIncidents, ...cashIncidents];
+    console.log(`\n📊 Total incidents to analyze: ${allIncidents.length}`);
+    
+    if (allIncidents.length === 0) {
+      console.log('❌ No incidents found to analyze');
+      return;
+    }
+    
+    // Analyze field patterns
+    const fieldAnalysis = {
+      impactStartFields: new Set(),
+      transcriptFields: new Set(),
+      customFieldNames: new Set(),
+      timestampFields: new Set()
+    };
+    
+    allIncidents.slice(0, 10).forEach((incident, index) => {
+      console.log(`\n🔍 Analyzing incident ${index + 1}: ${incident.reference}`);
+      
+      // Check all top-level fields for impact start patterns
+      Object.keys(incident).forEach(key => {
+        if (key.toLowerCase().includes('impact') || key.toLowerCase().includes('start')) {
+          fieldAnalysis.impactStartFields.add(`${key}: ${typeof incident[key]}`);
+          if (incident[key]) {
+            console.log(`   📅 Found impact/start field: ${key} = ${incident[key]}`);
+          }
+        }
+        
+        if (key.toLowerCase().includes('transcript') || key.toLowerCase().includes('call') || key.toLowerCase().includes('meeting')) {
+          fieldAnalysis.transcriptFields.add(`${key}: ${typeof incident[key]}`);
+          if (incident[key]) {
+            console.log(`   📋 Found transcript/call field: ${key} = ${incident[key]}`);
+          }
+        }
+        
+        // Look for timestamp-related fields
+        if (key.toLowerCase().includes('timestamp') || key.toLowerCase().includes('time')) {
+          fieldAnalysis.timestampFields.add(`${key}: ${typeof incident[key]}`);
+          if (incident[key]) {
+            console.log(`   ⏰ Found timestamp field: ${key} = ${JSON.stringify(incident[key])}`);
+          }
+        }
+      });
+      
+      // Check custom fields
+      if (incident.custom_field_entries) {
+        incident.custom_field_entries.forEach(entry => {
+          const fieldName = entry.custom_field?.name || '';
+          fieldAnalysis.customFieldNames.add(fieldName);
+          
+          if ((fieldName.toLowerCase().includes('impact') && fieldName.toLowerCase().includes('start')) ||
+              fieldName.toLowerCase().includes('transcript')) {
+            console.log(`   🎯 Relevant custom field: "${fieldName}" = ${JSON.stringify(entry.values)}`);
+          }
+        });
+      }
+    });
+    
+    // Summary
+    console.log('\n📊 FIELD ANALYSIS SUMMARY:');
+    console.log('\n🔍 Impact Start Date candidates:');
+    fieldAnalysis.impactStartFields.forEach(field => console.log(`   - ${field}`));
+    
+    console.log('\n🔍 Transcript URL candidates:');
+    fieldAnalysis.transcriptFields.forEach(field => console.log(`   - ${field}`));
+    
+    console.log('\n⏰ Timestamp fields found:');
+    fieldAnalysis.timestampFields.forEach(field => console.log(`   - ${field}`));
+    
+    console.log('\n🔍 All custom field names found:');
+    Array.from(fieldAnalysis.customFieldNames).sort().forEach(name => {
+      if (name) console.log(`   - "${name}"`);
+    });
+    
+  } catch (error) {
+    console.error('❌ Research failed:', error.toString());
+    throw error;
+  }
+}
+
+/**
+ * Deep research function specifically for Impact Start timestamp using V2 endpoint
+ */
+function researchImpactStartTimestamp() {
+  console.log('🔬 Deep research for Impact Start timestamp using V2 endpoint...');
+  
+  try {
+    const config = getConfiguration();
+    const apiConfig = CONFIG.incidentio.square;
+    
+    // Fetch sample incidents first
+    const squareIncidents = fetchIncidentsFromIncidentIO('square', config);
+    
+    if (squareIncidents.length === 0) {
+      console.log('❌ No incidents found for analysis');
+      return;
+    }
+    
+    console.log(`\n🔍 Researching incident timestamps for ${Math.min(3, squareIncidents.length)} incidents:`);
+    
+    // Research timestamps for first 3 incidents using V2 endpoint
+    for (let i = 0; i < Math.min(3, squareIncidents.length); i++) {
+      const incident = squareIncidents[i];
+      console.log(`\n📋 Incident ${i + 1}: ${incident.reference} (ID: ${incident.id})`);
+      
+      try {
+        // Call the incident timestamps V2 endpoint
+        const timestampsUrl = `${apiConfig.baseUrl}/incident_timestamps?incident_id=${incident.id}`;
+        console.log(`   📡 Fetching timestamps from: ${timestampsUrl}`);
+        
+        const response = UrlFetchApp.fetch(timestampsUrl, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${apiConfig.apiKey}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.getResponseCode() === 200) {
+          const timestampsData = JSON.parse(response.getContentText());
+          console.log(`   ✅ Timestamps response:`, JSON.stringify(timestampsData, null, 2));
+          
+          // Look for impact-related timestamps
+          if (timestampsData.incident_timestamps) {
+            console.log(`   ⏰ Found ${timestampsData.incident_timestamps.length} timestamps:`);
+            timestampsData.incident_timestamps.forEach((timestamp, index) => {
+              const name = timestamp.name || 'Unknown';
+              const value = timestamp.value || 'NULL';
+              const id = timestamp.id || 'Unknown';
+              console.log(`     ${index + 1}. "${name}": ${value} (ID: ${id})`);
+              
+              // Highlight impact-related timestamps
+              if (name.toLowerCase().includes('impact') || name.toLowerCase().includes('start')) {
+                console.log(`       🎯 POTENTIAL MATCH: "${name}" = ${value}`);
+              }
+            });
+          } else {
+            console.log(`   ❌ No incident_timestamps in response`);
+          }
+          
+        } else {
+          console.log(`   ❌ Timestamps API call failed: ${response.getResponseCode()} - ${response.getContentText()}`);
+        }
+        
+      } catch (error) {
+        console.error(`   ❌ Error fetching timestamps for ${incident.reference}:`, error.toString());
+      }
+      
+      // Rate limiting
+      Utilities.sleep(500);
+    }
+    
+    // Show results in UI
+    const ui = SpreadsheetApp.getUi();
+    ui.alert(
+      '🔬 Incident Timestamps V2 Research Complete',
+      'Research using the dedicated timestamps endpoint complete. Check the Apps Script logs for detailed timestamp field names.',
+      ui.ButtonSet.OK
+    );
+    
+  } catch (error) {
+    console.error('❌ Incident timestamps research failed:', error.toString());
+    
+    const ui = SpreadsheetApp.getUi();
+    ui.alert(
+      '❌ Research Failed',
+      `Incident timestamps research failed:\n\n${error.toString()}`,
+      ui.ButtonSet.OK
+    );
+  }
+}
+
+/**
+ * Research function to explore all available timestamp types
+ */
+function researchTimestampTypes() {
+  console.log('🔬 Researching all available incident timestamp types...');
+  
+  try {
+    const apiConfig = CONFIG.incidentio.square;
+    
+    // Call the incident timestamp types endpoint to see all available types
+    const typesUrl = `${apiConfig.baseUrl}/incident_timestamp_types`;
+    console.log(`📡 Fetching timestamp types from: ${typesUrl}`);
+    
+    const response = UrlFetchApp.fetch(typesUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${apiConfig.apiKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (response.getResponseCode() === 200) {
+      const typesData = JSON.parse(response.getContentText());
+      console.log(`✅ Timestamp types response:`, JSON.stringify(typesData, null, 2));
+      
+      if (typesData.incident_timestamp_types) {
+        console.log(`\n📋 Available timestamp types (${typesData.incident_timestamp_types.length}):`);
+        typesData.incident_timestamp_types.forEach((type, index) => {
+          const name = type.name || 'Unknown';
+          const id = type.id || 'Unknown';
+          console.log(`   ${index + 1}. "${name}" (ID: ${id})`);
+          
+          // Highlight impact-related types
+          if (name.toLowerCase().includes('impact') || name.toLowerCase().includes('start')) {
+            console.log(`     🎯 POTENTIAL IMPACT START: "${name}"`);
+          }
+        });
+      }
+      
+    } else {
+      console.log(`❌ Timestamp types API call failed: ${response.getResponseCode()} - ${response.getContentText()}`);
+    }
+    
+    // Show results in UI
+    const ui = SpreadsheetApp.getUi();
+    ui.alert(
+      '🔬 Timestamp Types Research Complete',
+      'Research of all available timestamp types complete. Check the Apps Script logs for the full list.',
+      ui.ButtonSet.OK
+    );
+    
+  } catch (error) {
+    console.error('❌ Timestamp types research failed:', error.toString());
+    
+    const ui = SpreadsheetApp.getUi();
+    ui.alert(
+      '❌ Research Failed',
+      `Timestamp types research failed:\n\n${error.toString()}`,
+      ui.ButtonSet.OK
+    );
   }
 }
 

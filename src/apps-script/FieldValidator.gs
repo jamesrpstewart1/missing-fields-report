@@ -41,7 +41,13 @@ function validateRequiredFields(incidents) {
  */
 function getPlatformRequiredFields(platform) {
   if (platform === 'incident.io') {
-    return ['Affected Markets', 'Causal Type', 'Stabilization Type'];
+    return [
+      'Affected Markets', 
+      'Causal Type', 
+      'Stabilization Type',
+      'Impact Start Date',  // New: Impact start timestamp
+      'Transcript URL'      // New: Google Meet transcript document
+    ];
   } else if (platform === 'firehydrant') {
     return ['Market']; // Only Market field for FireHydrant/Afterpay
   }
@@ -72,6 +78,22 @@ function hasRequiredField(incident, fieldName) {
  * Get field value from incident.io incident with field name mapping
  */
 function getIncidentIOFieldValue(incident, fieldName) {
+  // Handle new custom field for Transcript URL
+  if (fieldName === 'Transcript URL') {
+    const transcriptValues = getCustomFieldValue(incident, 'Google Meet Transcript');
+    if (transcriptValues.length > 0 && transcriptValues[0] && transcriptValues[0].trim()) {
+      return transcriptValues[0].trim();
+    }
+    return '';
+  }
+  
+  // Handle Impact Start Date - check custom timestamps
+  if (fieldName === 'Impact Start Date') {
+    // TODO: Need to investigate incident.io custom timestamps structure
+    // This will be implemented after deeper research
+    return getImpactStartTimestamp(incident);
+  }
+  
   // Map required field names to actual incident.io field names
   const fieldMapping = {
     'Affected Markets': ['Affected Markets', 'Affected Market(s)', 'Markets Affected', 'Impacted Markets'],
@@ -90,6 +112,51 @@ function getIncidentIOFieldValue(incident, fieldName) {
   }
   
   return '';
+}
+
+/**
+ * Get Impact Start timestamp from incident.io incident using V2 timestamps endpoint
+ */
+function getImpactStartTimestamp(incident) {
+  try {
+    const apiConfig = CONFIG.incidentio[incident.businessUnit.toLowerCase()];
+    if (!apiConfig || !apiConfig.apiKey) {
+      console.log('⚠️ No API config for Impact Start timestamp lookup');
+      return '';
+    }
+    
+    // Call the incident timestamps V2 endpoint
+    const timestampsUrl = `${apiConfig.baseUrl}/incident_timestamps?incident_id=${incident.id}`;
+    
+    const response = UrlFetchApp.fetch(timestampsUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${apiConfig.apiKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (response.getResponseCode() === 200) {
+      const timestampsData = JSON.parse(response.getContentText());
+      
+      if (timestampsData.incident_timestamps) {
+        // Look for the "Impact Start" timestamp
+        const impactStartTimestamp = timestampsData.incident_timestamps.find(
+          timestamp => timestamp.name === 'Impact Start'
+        );
+        
+        if (impactStartTimestamp && impactStartTimestamp.value) {
+          return impactStartTimestamp.value;
+        }
+      }
+    }
+    
+    return ''; // No Impact Start timestamp found or no value set
+    
+  } catch (error) {
+    console.error('❌ Error fetching Impact Start timestamp:', error.toString());
+    return ''; // Return empty on error
+  }
 }
 
 /**

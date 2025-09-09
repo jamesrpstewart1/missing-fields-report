@@ -75,7 +75,9 @@ const INCIDENT_FILTERING = {
 const REQUIRED_FIELDS = [
   'Affected Markets',
   'Causal Type',
-  'Stabilization Type'
+  'Stabilization Type',
+  'Impact Start Date',  // New: Impact start timestamp
+  'Transcript URL'      // New: Google Meet transcript document
 ];
 
 /**
@@ -321,6 +323,84 @@ function debugSpecificIncidents() {
     ui.alert(
       '❌ Debug Failed',
       `Debug investigation failed:\n\n${error.toString()}`,
+      ui.ButtonSet.OK
+    );
+  }
+}
+
+/**
+ * Test function to validate new field logic
+ */
+function testNewFieldValidation() {
+  console.log('🧪 Testing new field validation logic...');
+  
+  try {
+    const config = getConfiguration();
+    
+    // Fetch a small sample of incidents to test
+    console.log('--- Fetching sample incidents for validation test ---');
+    const squareIncidents = fetchIncidentsFromIncidentIO('square', config);
+    
+    if (squareIncidents.length === 0) {
+      throw new Error('No incidents found for testing');
+    }
+    
+    // Test with first 5 incidents
+    const testIncidents = squareIncidents.slice(0, 5);
+    console.log(`\n🔍 Testing field validation on ${testIncidents.length} incidents:`);
+    
+    testIncidents.forEach((incident, index) => {
+      console.log(`\n📋 Testing incident ${index + 1}: ${incident.reference}`);
+      
+      // Test all required fields
+      REQUIRED_FIELDS.forEach(fieldName => {
+        const fieldValue = getIncidentIOFieldValue(incident, fieldName);
+        const hasField = fieldValue && fieldValue.trim().length > 0;
+        
+        console.log(`   ${hasField ? '✅' : '❌'} ${fieldName}: "${fieldValue}"`);
+        
+        // Special logging for new fields
+        if (fieldName === 'Call URL') {
+          console.log(`      📞 Direct call_url: "${incident.call_url || 'NULL'}"`);
+        } else if (fieldName === 'Transcript URL') {
+          const transcriptValues = getCustomFieldValue(incident, 'Google Meet Transcript');
+          console.log(`      📄 Google Meet Transcript custom field: ${JSON.stringify(transcriptValues)}`);
+        }
+      });
+    });
+    
+    // Run full validation to see results
+    console.log('\n🔍 Running full validation on test incidents...');
+    const incidentsWithMissingFields = validateRequiredFields(testIncidents);
+    
+    console.log(`\n📊 VALIDATION RESULTS:`);
+    console.log(`   Total incidents tested: ${testIncidents.length}`);
+    console.log(`   Incidents with missing fields: ${incidentsWithMissingFields.length}`);
+    
+    if (incidentsWithMissingFields.length > 0) {
+      console.log('\n⚠️ Missing field details:');
+      incidentsWithMissingFields.forEach(incident => {
+        console.log(`   ${incident.reference}: Missing [${incident.missingFields.join(', ')}]`);
+      });
+    }
+    
+    // Show results in UI
+    const ui = SpreadsheetApp.getUi();
+    const summary = `Validation Test Complete!\n\n` +
+      `• Tested ${testIncidents.length} incidents\n` +
+      `• Found ${incidentsWithMissingFields.length} with missing fields\n` +
+      `• New fields tested: Call URL, Transcript URL\n\n` +
+      `Check Apps Script logs for detailed results.`;
+    
+    ui.alert('🧪 Field Validation Test', summary, ui.ButtonSet.OK);
+    
+  } catch (error) {
+    console.error('❌ Field validation test failed:', error.toString());
+    
+    const ui = SpreadsheetApp.getUi();
+    ui.alert(
+      '❌ Test Failed',
+      `Field validation test failed:\n\n${error.toString()}`,
       ui.ButtonSet.OK
     );
   }
