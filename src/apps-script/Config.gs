@@ -210,7 +210,7 @@ function calculateDateBucket(createdAt) {
 /**
  * Update enhanced summary sheet with comprehensive incident analysis
  */
-function updateSummarySheet(incidentsWithMissingFields) {
+function updateSummarySheet(incidentsWithMissingFields, totalIncidentsProcessed = null) {
   console.log(`📊 Updating enhanced summary sheet with comprehensive statistics...`);
   
   try {
@@ -228,11 +228,15 @@ function updateSummarySheet(incidentsWithMissingFields) {
     const analysis = analyzeIncidents(incidentsWithMissingFields);
     const timestamp = new Date().toLocaleString();
     
-    // Calculate totals - get dynamic total based on maxLookbackDays
+    // Calculate totals - use the passed total or calculate from analysis
     const totalMissing = incidentsWithMissingFields.length;
     const config = getConfiguration();
-    const lookbackDays = config.maxLookbackDays || 30;
-    const totalIncidents = analysis.totalIncidentsProcessed || totalMissing; // Will be set by the calling function
+    const lookbackDays = config.maxLookbackDays || 365;  // ✅ FIXED! Changed from 30 to 365 days
+    
+    // Use passed totalIncidentsProcessed if available, otherwise calculate from analysis
+    const totalIncidents = totalIncidentsProcessed !== null ? totalIncidentsProcessed : 
+      Object.values(analysis.buckets).reduce((sum, bucket) => sum + bucket.length, 0);
+    
     const missingPercentage = totalIncidents > 0 ? ((totalMissing / totalIncidents) * 100).toFixed(1) : '0.0';
     
     // Get severity filtering info
@@ -2050,14 +2054,14 @@ function formatLookbackPeriod(maxLookbackDays) {
 }
 
 /**
- * Get available age buckets based on lookback period
+ * Get available age buckets based on lookback period - FIXED THE BUG!
  */
 function getAvailableAgeBuckets(maxLookbackDays) {
   const buckets = {
     '0-7 days': maxLookbackDays >= 7,
     '7-30 days': maxLookbackDays >= 30,
-    '30-90 days': maxLookbackDays >= 90,
-    '90+ days': maxLookbackDays >= 90
+    '30-90 days': maxLookbackDays >= 30,  // ✅ FIXED: Show 30-90 day data if we have 30+ day lookback
+    '90+ days': maxLookbackDays >= 90     // Only show 90+ if we actually have 90+ day lookback
   };
   
   return buckets;
