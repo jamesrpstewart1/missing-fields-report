@@ -101,7 +101,6 @@ function createCustomMenu() {
       .addItem('📊 Show Automation Status', 'showAutomationStatus'))
     .addSeparator()
     .addItem('🔗 Test API Connections', 'testAllApiConnections')
-    .addItem('📚 Create README Sheet', 'createReadmeSheet')
     .addItem('ℹ️ About This Report', 'showAboutDialog')
     .addToUi();
   
