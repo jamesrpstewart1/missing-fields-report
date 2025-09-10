@@ -2461,53 +2461,22 @@ function sendMissingFieldsNotificationWithDateRange(incidentsWithMissingFields, 
     }
     
     const dateRangeInfo = `${config.dateRangeType || 'custom'} (${config.startDate.toLocaleDateString()} - ${config.endDate.toLocaleDateString()})`;
+    const daysDiff = Math.ceil((config.endDate - config.startDate) / (1000 * 60 * 60 * 24));
     
     // Build email subject with date range
     const subject = `Missing Fields Report - Custom Date Range: ${dateRangeInfo}`;
     
-    // Build email body with date range information
-    let emailBody = `Missing Fields Report - Custom Date Range Results\n\n`;
-    emailBody += `Date Range: ${dateRangeInfo}\n`;
-    emailBody += `Total Incidents Found: ${incidentsWithMissingFields.length}\n\n`;
+    // Generate summary for email (similar to normal email function)
+    const summary = getMissingFieldsSummaryForDateRange(incidentsWithMissingFields);
     
-    if (incidentsWithMissingFields.length === 0) {
-      emailBody += `✅ No incidents found with missing fields in the specified date range.\n\n`;
-    } else {
-      emailBody += `⚠️ Found ${incidentsWithMissingFields.length} incidents with missing required fields:\n\n`;
-      
-      // Group by business unit for better organization
-      const groupedIncidents = {};
-      incidentsWithMissingFields.forEach(incident => {
-        const unit = incident.businessUnit;
-        if (!groupedIncidents[unit]) {
-          groupedIncidents[unit] = [];
-        }
-        groupedIncidents[unit].push(incident);
-      });
-      
-      // Add incidents by business unit
-      Object.entries(groupedIncidents).forEach(([unit, incidents]) => {
-        emailBody += `${unit} (${incidents.length} incidents):\n`;
-        incidents.forEach(incident => {
-          emailBody += `  • ${incident.reference}: ${incident.missingFields.join(', ')}\n`;
-          if (incident.url) {
-            emailBody += `    Link: ${incident.url}\n`;
-          }
-        });
-        emailBody += '\n';
-      });
-    }
+    // Generate rich HTML email content using the same styling as normal emails
+    const emailContent = generateDateRangeEmailContent(incidentsWithMissingFields, summary, dateRangeInfo, daysDiff);
     
-    emailBody += `\nThis report was generated for the custom date range: ${dateRangeInfo}\n`;
-    emailBody += `Check the Google Sheets for detailed analysis and tracking information.\n`;
-    
-    // Send email to all recipients
-    emailRecipients.forEach(recipient => {
-      MailApp.sendEmail({
-        to: recipient,
-        subject: subject,
-        body: emailBody
-      });
+    // Send email with HTML formatting
+    MailApp.sendEmail({
+      to: emailRecipients.join(','),
+      subject: subject,
+      htmlBody: emailContent.html
     });
     
     console.log(`✅ Email notification sent to ${emailRecipients.length} recipient(s) for date range: ${dateRangeInfo}`);
@@ -2515,6 +2484,273 @@ function sendMissingFieldsNotificationWithDateRange(incidentsWithMissingFields, 
   } catch (error) {
     console.error('❌ Failed to send email notification with date range:', error.toString());
   }
+}
+
+/**
+ * Generate missing fields summary for date range emails
+ */
+function getMissingFieldsSummaryForDateRange(incidentsWithMissingFields) {
+  const summary = {
+    totalIncidents: incidentsWithMissingFields.length,
+    fieldCounts: {},
+    platformCounts: {},
+    businessUnitCounts: {}
+  };
+  
+  // Count missing fields
+  incidentsWithMissingFields.forEach(incident => {
+    // Count by missing field type
+    if (incident.missingFields) {
+      incident.missingFields.forEach(field => {
+        summary.fieldCounts[field] = (summary.fieldCounts[field] || 0) + 1;
+      });
+    }
+    
+    // Count by platform
+    const platform = incident.platform === 'incident.io' ? 'incident.io' : 'FireHydrant';
+    summary.platformCounts[platform] = (summary.platformCounts[platform] || 0) + 1;
+    
+    // Count by business unit
+    const businessUnit = incident.businessUnit;
+    summary.businessUnitCounts[businessUnit] = (summary.businessUnitCounts[businessUnit] || 0) + 1;
+  });
+  
+  return summary;
+}
+
+/**
+ * Generate rich HTML email content for date range reports
+ */
+function generateDateRangeEmailContent(incidentsWithMissingFields, summary, dateRangeInfo, daysDiff) {
+  const currentDate = new Date().toLocaleDateString();
+  const currentTime = new Date().toLocaleTimeString();
+  
+  let html = `
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .header { background-color: #007bff; color: white; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+        .date-range-info { background-color: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 5px; padding: 15px; margin-bottom: 20px; }
+        .summary { background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+        .incident { border: 1px solid #dee2e6; border-radius: 5px; margin-bottom: 15px; padding: 15px; }
+        .incident-header { font-weight: bold; color: #495057; margin-bottom: 10px; }
+        .missing-fields { background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 3px; padding: 8px; margin-top: 10px; }
+        .field-tag { background-color: #dc3545; color: white; padding: 2px 6px; border-radius: 3px; font-size: 12px; margin-right: 5px; }
+        .platform-badge { padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; }
+        .badge-square { background-color: #000000; color: white; }
+        .badge-cash { background-color: #28a745; color: white; }
+        .badge-afterpay { background-color: #007bff; color: white; }
+        .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #dee2e6; font-size: 12px; color: #6c757d; }
+        a { color: #007bff; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 8px; text-align: left; border-bottom: 1px solid #dee2e6; }
+        th { background-color: #f8f9fa; font-weight: bold; }
+        .no-incidents { background-color: #d4edda; border: 1px solid #c3e6cb; border-radius: 5px; padding: 15px; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>🔍 Missing Fields Report - Custom Date Range</h2>
+            <p>Generated on ${currentDate} at ${currentTime}</p>
+        </div>
+        
+        <div class="date-range-info">
+            <h3>📅 Custom Date Range Analysis</h3>
+            <p><strong>Date Range:</strong> ${dateRangeInfo}</p>
+            <p><strong>Duration:</strong> ${daysDiff} day${daysDiff !== 1 ? 's' : ''}</p>
+            <p><strong>Report Type:</strong> Ad-hoc custom date range report</p>
+        </div>
+`;
+
+  if (incidentsWithMissingFields.length === 0) {
+    html += `
+        <div class="no-incidents">
+            <h3>✅ No Missing Fields Found</h3>
+            <p>Great news! No incidents were found with missing required fields in the specified date range.</p>
+            <p>All incidents in this period appear to have complete field information.</p>
+        </div>
+`;
+  } else {
+    // Summary section
+    html += `
+        <div class="summary">
+            <h3>📊 Summary</h3>
+            <table>
+                <tr><th>Total Incidents with Missing Fields</th><td><strong>${summary.totalIncidents}</strong></td></tr>
+`;
+
+    // Missing fields breakdown
+    if (Object.keys(summary.fieldCounts).length > 0) {
+      html += '<tr><th>Missing Fields Breakdown</th><td>';
+      Object.entries(summary.fieldCounts).forEach(([field, count]) => {
+        if (count > 0) {
+          html += `<span class="field-tag">${field}: ${count}</span>`;
+        }
+      });
+      html += '</td></tr>';
+    }
+
+    // Platform breakdown
+    if (Object.keys(summary.platformCounts).length > 0) {
+      html += '<tr><th>By Platform</th><td>';
+      Object.entries(summary.platformCounts).forEach(([platform, count]) => {
+        html += `<span class="platform-badge">${platform}: ${count}</span> `;
+      });
+      html += '</td></tr>';
+    }
+
+    // Business unit breakdown
+    if (Object.keys(summary.businessUnitCounts).length > 0) {
+      html += '<tr><th>By Business Unit</th><td>';
+      Object.entries(summary.businessUnitCounts).forEach(([bu, count]) => {
+        const badgeClass = bu.toLowerCase() === 'square' ? 'badge-square' : 
+                          bu.toLowerCase() === 'cash' ? 'badge-cash' : 'badge-afterpay';
+        html += `<span class="platform-badge ${badgeClass}">${bu}: ${count}</span> `;
+      });
+      html += '</td></tr>';
+    }
+
+    html += `
+            </table>
+        </div>
+
+        <h3>📋 Incidents Requiring Attention</h3>
+`;
+
+    // Individual incidents
+    incidentsWithMissingFields.forEach(incident => {
+      const createdDate = new Date(incident.created_at).toLocaleDateString();
+      const platformBadge = incident.platform === 'incident.io' ? 'incident.io' : 'FireHydrant';
+      const badgeClass = incident.businessUnit.toLowerCase() === 'square' ? 'badge-square' : 
+                        incident.businessUnit.toLowerCase() === 'cash' ? 'badge-cash' : 'badge-afterpay';
+      
+      html += `
+        <div class="incident">
+            <div class="incident-header">
+                <a href="${incident.url}" target="_blank">${incident.reference}</a>
+                <span class="platform-badge ${badgeClass}">${platformBadge} - ${incident.businessUnit}</span>
+            </div>
+            <p><strong>Summary:</strong> ${incident.name || incident.summary || 'No summary available'}</p>
+            <p><strong>Created:</strong> ${createdDate}</p>
+            <div class="missing-fields">
+                <strong>Missing Fields:</strong>
+`;
+      
+      incident.missingFields.forEach(field => {
+        html += `<span class="field-tag">${field}</span>`;
+      });
+      
+      html += `
+            </div>
+        </div>
+`;
+    });
+  }
+
+  // Get spreadsheet URL for footer link
+  const spreadsheetUrl = SpreadsheetApp.getActiveSpreadsheet().getUrl();
+
+  html += `
+        <div class="footer">
+            <p><strong>Next Steps:</strong></p>
+            <ul>
+                <li>Click on incident references to open them directly</li>
+                <li>Update the missing fields as indicated</li>
+                <li>Check the <a href="${spreadsheetUrl}" target="_blank">Google Sheets report</a> for detailed analysis and tracking</li>
+            </ul>
+            <hr>
+            <p><strong>About this report:</strong> This is a custom date range report generated on-demand. It analyzes incidents within the specified time period for missing required fields. For regular monitoring, the system also runs automated daily checks.</p>
+        </div>
+    </div>
+</body>
+</html>
+`;
+
+  return {
+    html: html,
+    text: generateDateRangePlainTextContent(incidentsWithMissingFields, summary, dateRangeInfo, daysDiff)
+  };
+}
+
+/**
+ * Generate plain text content for date range emails (fallback)
+ */
+function generateDateRangePlainTextContent(incidentsWithMissingFields, summary, dateRangeInfo, daysDiff) {
+  const currentDate = new Date().toLocaleDateString();
+  const currentTime = new Date().toLocaleTimeString();
+  
+  let text = `MISSING FIELDS REPORT - CUSTOM DATE RANGE\n`;
+  text += `Generated on ${currentDate} at ${currentTime}\n\n`;
+  
+  text += `CUSTOM DATE RANGE ANALYSIS:\n`;
+  text += `Date Range: ${dateRangeInfo}\n`;
+  text += `Duration: ${daysDiff} day${daysDiff !== 1 ? 's' : ''}\n`;
+  text += `Report Type: Ad-hoc custom date range report\n\n`;
+  
+  if (incidentsWithMissingFields.length === 0) {
+    text += `✅ NO MISSING FIELDS FOUND\n`;
+    text += `Great news! No incidents were found with missing required fields in the specified date range.\n`;
+    text += `All incidents in this period appear to have complete field information.\n\n`;
+  } else {
+    text += `SUMMARY:\n`;
+    text += `- Total Incidents with Missing Fields: ${summary.totalIncidents}\n\n`;
+    
+    if (Object.keys(summary.fieldCounts).length > 0) {
+      text += `Missing Fields Breakdown:\n`;
+      Object.entries(summary.fieldCounts).forEach(([field, count]) => {
+        if (count > 0) {
+          text += `- ${field}: ${count}\n`;
+        }
+      });
+      text += `\n`;
+    }
+    
+    if (Object.keys(summary.platformCounts).length > 0) {
+      text += `By Platform:\n`;
+      Object.entries(summary.platformCounts).forEach(([platform, count]) => {
+        text += `- ${platform}: ${count}\n`;
+      });
+      text += `\n`;
+    }
+    
+    if (Object.keys(summary.businessUnitCounts).length > 0) {
+      text += `By Business Unit:\n`;
+      Object.entries(summary.businessUnitCounts).forEach(([bu, count]) => {
+        text += `- ${bu}: ${count}\n`;
+      });
+      text += `\n`;
+    }
+    
+    text += `INCIDENTS REQUIRING ATTENTION:\n`;
+    text += `${'='.repeat(50)}\n\n`;
+    
+    incidentsWithMissingFields.forEach((incident, index) => {
+      const createdDate = new Date(incident.created_at).toLocaleDateString();
+      
+      text += `${index + 1}. ${incident.reference} (${incident.platform} - ${incident.businessUnit})\n`;
+      text += `   Summary: ${incident.name || incident.summary || 'No summary available'}\n`;
+      text += `   Created: ${createdDate}\n`;
+      text += `   URL: ${incident.url}\n`;
+      text += `   Missing Fields: ${incident.missingFields.join(', ')}\n\n`;
+    });
+  }
+  
+  const spreadsheetUrl = SpreadsheetApp.getActiveSpreadsheet().getUrl();
+  
+  text += `NEXT STEPS:\n`;
+  text += `- Click incident URLs to update missing fields\n`;
+  text += `- Check Google Sheets report for detailed analysis: ${spreadsheetUrl}\n\n`;
+  text += `ABOUT THIS REPORT:\n`;
+  text += `This is a custom date range report generated on-demand. It analyzes incidents\n`;
+  text += `within the specified time period for missing required fields. For regular\n`;
+  text += `monitoring, the system also runs automated daily checks.\n`;
+  
+  return text;
 }
 
 /**
