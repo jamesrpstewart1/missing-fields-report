@@ -38,15 +38,15 @@ function runWeeklySummaryReport() {
     config.startDate = startDate;
     config.endDate = endDate;
     
-    // Fetch incidents from all platforms for the past week
+    // Fetch incidents from all platforms for the past week with severity filtering
     const allIncidents = [];
     
-    // incident.io - Square and Cash
-    const squareIncidents = fetchIncidentsFromIncidentIOWithDateRange('square', config);
-    const cashIncidents = fetchIncidentsFromIncidentIOWithDateRange('cash', config);
+    // incident.io - Square and Cash (with severity filtering)
+    const squareIncidents = fetchIncidentsFromIncidentIOForWeekly('square', config);
+    const cashIncidents = fetchIncidentsFromIncidentIOForWeekly('cash', config);
     
-    // FireHydrant - Afterpay
-    const afterpayIncidents = fetchIncidentsFromFireHydrantWithDateRange('afterpay', config);
+    // FireHydrant - Afterpay (with severity filtering)
+    const afterpayIncidents = fetchIncidentsFromFireHydrantForWeekly('afterpay', config);
     
     allIncidents.push(...squareIncidents, ...cashIncidents, ...afterpayIncidents);
     
@@ -429,6 +429,236 @@ function createCustomMenuWithWeekly() {
 }
 
 // =============================================================================
+// WEEKLY SEVERITY FILTERING FUNCTIONS - ADD TO Code.gs
+// =============================================================================
+
+/**
+ * Fetch incidents from incident.io with WEEKLY filtering AND severity filtering
+ * This function uses different filtering criteria than the daily reports
+ */
+function fetchIncidentsFromIncidentIOForWeekly(businessUnit, config) {
+  console.log(`📊 Fetching weekly incidents from incident.io for ${businessUnit} with severity filtering...`);
+  
+  try {
+    const platformConfig = CONFIG.incidentio[businessUnit.toLowerCase()];
+    
+    if (!platformConfig || !platformConfig.apiKey) {
+      console.log(`⚠️ No API configuration found for ${businessUnit}`);
+      return [];
+    }
+    
+    // Fetch incidents from API
+    const response = UrlFetchApp.fetch(`${platformConfig.baseUrl}/incidents`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${platformConfig.apiKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (response.getResponseCode() !== 200) {
+      throw new Error(`API request failed with status: ${response.getResponseCode()}`);
+    }
+    
+    const data = JSON.parse(response.getContentText());
+    let incidents = data.incidents || [];
+    
+    console.log(`📊 Raw incidents fetched: ${incidents.length}`);
+    
+    // Apply WEEKLY filtering (different from daily)
+    incidents = incidents.filter(incident => {
+      // Date filtering - only incidents opened in the specified date range
+      const createdDate = new Date(incident.created_at);
+      const isInDateRange = createdDate >= config.startDate && createdDate <= config.endDate;
+      
+      if (!isInDateRange) return false;
+      
+      // Status filtering - EXCLUDE certain statuses for weekly (opposite of daily)
+      const status = incident.incident_status?.name;
+      const statusExcluded = INCIDENT_FILTERING.excludeStatuses.includes(status);
+      
+      if (statusExcluded) return false;
+      
+      // Mode filtering
+      const mode = incident.mode?.name;
+      const modeIncluded = INCIDENT_FILTERING.includeModes.includes(mode);
+      
+      if (!modeIncluded) return false;
+      
+      // Type filtering
+      const incidentType = incident.incident_type?.name || '';
+      const typeExcluded = INCIDENT_FILTERING.excludeTypes.some(excludeType => 
+        incidentType.includes(excludeType)
+      );
+      
+      if (typeExcluded) return false;
+      
+      // SEVERITY FILTERING (NEW)
+      if (config.enableSeverityFiltering) {
+        const severity = incident.severity?.name || incident.incident_severity?.name;
+        if (!severity) return false; // Exclude incidents without severity
+        
+        const allowedSeverities = config.incidentioSeverities || [];
+        if (allowedSeverities.length === 0) return false; // No severities configured
+        
+        // Check if severity matches allowed list
+        let severityMatches = allowedSeverities.includes(severity);
+        
+        // Check for "Internal Impact" variants if enabled
+        if (!severityMatches && config.includeInternalImpact) {
+          const internalImpactVariants = allowedSeverities.map(sev => `${sev} Internal Impact`);
+          severityMatches = internalImpactVariants.includes(severity);
+        }
+        
+        if (!severityMatches) return false;
+      }
+      
+      return true;
+    });
+    
+    // Transform incidents to standard format
+    const transformedIncidents = incidents.map(incident => ({
+      reference: incident.reference,
+      name: incident.name,
+      summary: incident.summary || incident.name,
+      created_at: incident.created_at,
+      url: incident.permalink,
+      slackUrl: incident.slack_channel_id ? `https://slack.com/app_redirect?channel=${incident.slack_channel_id}` : null,
+      platform: 'incident.io',
+      businessUnit: businessUnit,
+      status: incident.incident_status?.name,
+      severity: incident.severity?.name || incident.incident_severity?.name,
+      incident_severity: incident.incident_severity, // Keep original for compatibility
+      mode: incident.mode?.name,
+      incident_type: incident.incident_type,
+      custom_fields: incident.custom_fields || []
+    }));
+    
+    console.log(`✅ Weekly incidents filtered for ${businessUnit}: ${transformedIncidents.length}`);
+    if (config.enableSeverityFiltering) {
+      console.log(`   🎯 Severity filtering applied: ${config.incidentioSeverities?.join(', ') || 'None'}`);
+    }
+    
+    return transformedIncidents;
+    
+  } catch (error) {
+    console.error(`❌ Failed to fetch weekly incidents from incident.io for ${businessUnit}:`, error.toString());
+    return [];
+  }
+}
+
+/**
+ * Fetch incidents from FireHydrant with WEEKLY filtering AND severity filtering
+ * This function uses different filtering criteria than the daily reports
+ */
+function fetchIncidentsFromFireHydrantForWeekly(businessUnit, config) {
+  console.log(`📊 Fetching weekly incidents from FireHydrant for ${businessUnit} with severity filtering...`);
+  
+  try {
+    const platformConfig = CONFIG.firehydrant[businessUnit.toLowerCase()];
+    
+    if (!platformConfig || !platformConfig.apiKey) {
+      console.log(`⚠️ No API configuration found for ${businessUnit}`);
+      return [];
+    }
+    
+    // Fetch incidents from API
+    const response = UrlFetchApp.fetch(`${platformConfig.baseUrl}/incidents`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${platformConfig.apiKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (response.getResponseCode() !== 200) {
+      throw new Error(`API request failed with status: ${response.getResponseCode()}`);
+    }
+    
+    const data = JSON.parse(response.getContentText());
+    let incidents = data.data || [];
+    
+    console.log(`📊 Raw incidents fetched: ${incidents.length}`);
+    
+    // Apply WEEKLY filtering (different from daily)
+    incidents = incidents.filter(incident => {
+      // Date filtering - only incidents opened in the specified date range
+      const createdDate = new Date(incident.created_at);
+      const isInDateRange = createdDate >= config.startDate && createdDate <= config.endDate;
+      
+      if (!isInDateRange) return false;
+      
+      // Status filtering - EXCLUDE certain statuses for weekly (opposite of daily)
+      const status = incident.current_milestone;
+      const statusExcluded = INCIDENT_FILTERING.excludeStatuses.includes(status);
+      
+      if (statusExcluded) return false;
+      
+      // Type filtering
+      const incidentType = incident.incident_type?.name || '';
+      const typeExcluded = INCIDENT_FILTERING.excludeTypes.some(excludeType => 
+        incidentType.includes(excludeType)
+      );
+      
+      if (typeExcluded) return false;
+      
+      // SEVERITY FILTERING (NEW)
+      if (config.enableSeverityFiltering) {
+        let severity = null;
+        
+        // FireHydrant severity can be string or object
+        if (typeof incident.severity === 'string') {
+          severity = incident.severity;
+        } else if (incident.severity?.name) {
+          severity = incident.severity.name;
+        } else if (incident.severity?.value) {
+          severity = incident.severity.value;
+        }
+        
+        if (!severity) return false; // Exclude incidents without severity
+        
+        const allowedSeverities = config.firehydrantSeverities || [];
+        if (allowedSeverities.length === 0) return false; // No severities configured
+        
+        // Check if severity matches allowed list
+        if (!allowedSeverities.includes(severity)) return false;
+      }
+      
+      return true;
+    });
+    
+    // Transform incidents to standard format
+    const transformedIncidents = incidents.map(incident => ({
+      reference: incident.id,
+      name: incident.name,
+      summary: incident.description || incident.name,
+      created_at: incident.created_at,
+      url: incident.incident_url,
+      slackUrl: incident.slack_channel?.url || null,
+      platform: 'firehydrant',
+      businessUnit: businessUnit,
+      status: incident.current_milestone,
+      severity: typeof incident.severity === 'string' ? incident.severity : 
+                incident.severity?.name || incident.severity?.value,
+      mode: 'standard', // FireHydrant doesn't have modes like incident.io
+      incident_type: incident.incident_type,
+      custom_fields: []
+    }));
+    
+    console.log(`✅ Weekly incidents filtered for ${businessUnit}: ${transformedIncidents.length}`);
+    if (config.enableSeverityFiltering) {
+      console.log(`   🎯 Severity filtering applied: ${config.firehydrantSeverities?.join(', ') || 'None'}`);
+    }
+    
+    return transformedIncidents;
+    
+  } catch (error) {
+    console.error(`❌ Failed to fetch weekly incidents from FireHydrant for ${businessUnit}:`, error.toString());
+    return [];
+  }
+}
+
+// =============================================================================
 // WEEKLY EMAIL TEMPLATE - ADD TO EmailService.gs
 // =============================================================================
 
@@ -562,6 +792,11 @@ function buildWeeklySummaryEmailContent(weeklySummary, config) {
               <div class="metric-label">Incomplete Incidents</div>
             </div>
           </div>
+          
+          <table style="margin-top: 15px;">
+            <tr><th style="width: 200px;">Severity Filtering</th><td>${getSeverityFilteringSummary(config).status}</td></tr>
+            ${config.enableSeverityFiltering ? `<tr><th>Severity Criteria</th><td>${getSeverityFilteringSummary(config).criteria}</td></tr>` : ''}
+          </table>
         </div>
         
         <div class="metric-card">
