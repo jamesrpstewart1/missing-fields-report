@@ -3,7 +3,7 @@
 ## Overview
 **Production-ready automated system** to monitor and report missing required fields across incident.io and FireHydrant platforms, with daily email notifications to ensure incident data completeness.
 
-## 🎉 Version 2.2.0 - Now Available!
+## 🎉 Version 2.3.0 - Now Available!
 
 ### ✅ Core Functionality
 - **Daily automated check** of incident fields across incident.io and FireHydrant
@@ -11,7 +11,9 @@
 - **Track incidents** until fields are completed
 - **Performance optimized** - 69 second execution time
 - **Comprehensive reporting** with Summary dashboard
-- **🎯 NEW: Severity filtering** - Focus on critical incidents by severity level
+- **🎯 Severity filtering** - Focus on critical incidents by severity level
+- **📅 NEW: Custom date range reports** - Generate ad-hoc reports for any time period
+- **📧 NEW: Consistent email formatting** - Unified report structure across all email types
 
 ### 📋 Required Fields Monitored (5 Total)
 - **Affected Markets**
@@ -78,6 +80,8 @@ missing-fields-report/
 - **Date Bucket Analysis**: 0-7 days, 7-30 days, 30-90 days, 90+ days
 - **Business Unit Breakdown**: Square, Cash, Afterpay analytics
 - **Platform Analysis**: incident.io and FireHydrant comparisons
+- **📅 Custom Date Range Reports**: Generate reports for any specific time period
+- **📧 Consistent Email Formatting**: Unified summary sections across all report types
 
 ### ⚡ Performance & Reliability
 - **Fast Execution**: ~69 seconds for full analysis
@@ -93,12 +97,22 @@ missing-fields-report/
 - **Multi-Platform**: Different validation logic for each platform
 - **Accurate Detection**: Zero false positives
 
-### 🎯 Severity Filtering (NEW!)
+### 🎯 Severity Filtering
 - **Configurable Filtering**: Focus on specific severity levels (SEV0, SEV1, SEV2, etc.)
 - **Platform-Specific**: Different severity configurations for incident.io and FireHydrant
 - **Internal Impact Support**: Handle incident.io "Internal Impact" severity variants
 - **Dashboard Integration**: Severity status displayed in Summary and Email reports
 - **Flexible Configuration**: Enable/disable filtering via Config sheet parameters
+
+### 📅 Custom Date Range Reports (NEW!)
+- **Flexible Date Selection**: Choose any start and end date for analysis
+- **Preset Date Ranges**: Current month, last month, quarter, YTD, last 30/90 days
+- **Custom Date Picker**: User-friendly interface for date selection
+- **Date Range Validation**: Automatic validation and confirmation dialogs
+- **Comprehensive Analysis**: Same detailed analysis as daily reports for any time period
+- **Email Integration**: Custom date range reports sent via email with full formatting
+- **Sheet Updates**: Summary and Tracking sheets updated with date range context
+- **Performance Optimized**: Efficient API filtering for large date ranges
 
 ## 🛠️ Technical Architecture
 
@@ -110,12 +124,12 @@ missing-fields-report/
 - **Email System**: HTML-formatted notifications via MailApp/GmailApp
 
 ### Data Flow
-1. **Daily Trigger**: Automated execution at 9:00 AM
-2. **API Calls**: Fetch incidents from all platforms
+1. **Daily Trigger**: Automated execution at 9:00 AM (or manual/custom date range execution)
+2. **API Calls**: Fetch incidents from all platforms (with optional date filtering)
 3. **Field Validation**: Check all 5 required fields
 4. **Analysis**: Generate comprehensive reports and summaries
 5. **Notifications**: Send HTML email reports to stakeholders
-6. **Tracking**: Update Google Sheets with results
+6. **Tracking**: Update Google Sheets with results and date range context
 
 ## 📈 Performance Metrics
 
@@ -132,6 +146,9 @@ missing-fields-report/
 2. Review the Summary tab for executive overview
 3. Use Tracking tab for detailed incident analysis
 4. Configure email recipients in Config tab
+5. **NEW**: Use "Custom Date Ranges" menu for ad-hoc reports
+   - Select "Run with Custom Dates" for specific date ranges
+   - Select "Run with Preset Range" for common periods (last month, quarter, etc.)
 
 ### For Developers
 1. Clone this repository
@@ -164,6 +181,25 @@ missing-fields-report/
 
 ---
 
-**Version**: 2.2.0  
-**Last Updated**: September 9, 2025  
+**Version**: 2.3.0  
+**Last Updated**: September 10, 2025  
 **Status**: Production Ready ✅
+
+## 🆕 What's New in v2.3.0
+
+### 📅 Custom Date Range Reports
+- **Flexible Date Selection**: Generate reports for any specific time period
+- **Preset Options**: Current month, last month, quarter, YTD, last 30/90 days
+- **User-Friendly Interface**: Intuitive date picker with validation
+- **Full Feature Parity**: Same comprehensive analysis as daily reports
+
+### 📧 Email Report Consistency
+- **Unified Summary Sections**: Both standard and custom date range emails now have identical structure
+- **Missing Fields Breakdown**: Color-coded field tags showing counts by field type
+- **Severity Information**: Consistent severity filtering status and criteria display
+- **Rich HTML Formatting**: Professional styling with business unit color coding
+
+### 🛠️ Technical Improvements
+- **Enhanced Error Handling**: Fixed config parameter passing in custom date range emails
+- **Performance Optimization**: Efficient API filtering for large date ranges
+- **Backward Compatibility**: All existing functionality preserved and enhanced

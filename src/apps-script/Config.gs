@@ -2470,7 +2470,7 @@ function sendMissingFieldsNotificationWithDateRange(incidentsWithMissingFields, 
     const summary = getMissingFieldsSummaryForDateRange(incidentsWithMissingFields);
     
     // Generate rich HTML email content using the same styling as normal emails
-    const emailContent = generateDateRangeEmailContent(incidentsWithMissingFields, summary, dateRangeInfo, daysDiff);
+    const emailContent = generateDateRangeEmailContent(incidentsWithMissingFields, summary, dateRangeInfo, daysDiff, config);
     
     // Send email with HTML formatting
     MailApp.sendEmail({
@@ -2521,7 +2521,7 @@ function getMissingFieldsSummaryForDateRange(incidentsWithMissingFields) {
 /**
  * Generate rich HTML email content for date range reports
  */
-function generateDateRangeEmailContent(incidentsWithMissingFields, summary, dateRangeInfo, daysDiff) {
+function generateDateRangeEmailContent(incidentsWithMissingFields, summary, dateRangeInfo, daysDiff, config) {
   const currentDate = new Date().toLocaleDateString();
   const currentTime = new Date().toLocaleTimeString();
   
@@ -2593,6 +2593,13 @@ function generateDateRangeEmailContent(incidentsWithMissingFields, summary, date
         }
       });
       html += '</td></tr>';
+    }
+
+    // Add severity filtering information (NEW - matching standard email)
+    const severityFilterInfo = getSeverityFilteringSummary(config);
+    html += `<tr><th>Severity Filtering</th><td>${severityFilterInfo.status}</td></tr>`;
+    if (config.enableSeverityFiltering) {
+      html += `<tr><th>Severity Criteria</th><td>${severityFilterInfo.criteria}</td></tr>`;
     }
 
     // Platform breakdown

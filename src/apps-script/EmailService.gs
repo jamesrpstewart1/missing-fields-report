@@ -337,6 +337,17 @@ function generateTieredEmailContent(buckets, summary) {
   const lookbackPeriodSummary = getLookbackPeriodSummary(config);
   html += `<tr><th>Data Period</th><td>${lookbackPeriodSummary.summary}</td></tr>`;
   
+  // Add Missing Fields Breakdown (NEW - matching custom date range email)
+  if (Object.keys(summary.fieldCounts).length > 0) {
+    html += '<tr><th>Missing Fields Breakdown</th><td>';
+    Object.entries(summary.fieldCounts).forEach(([field, count]) => {
+      if (count > 0) {
+        html += `<span class="field-tag">${field}: ${count}</span>`;
+      }
+    });
+    html += '</td></tr>';
+  }
+  
   // Add severity filtering information
   const severityFilterInfo = getSeverityFilteringSummary(config);
   html += `<tr><th>Severity Filtering</th><td>${severityFilterInfo.status}</td></tr>`;
