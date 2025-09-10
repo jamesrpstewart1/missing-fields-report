@@ -1500,9 +1500,15 @@ function generateWeeklySummary(allIncidents, incidentsWithMissingFields, inciden
     'Afterpay': { total: 0, complete: 0, incomplete: 0 }
   };
   
-  // Count by business unit
+  // Severity breakdown
+  const severityBreakdown = {};
+  
+  // Count by business unit and severity
   allIncidents.forEach(incident => {
     const businessUnit = incident.businessUnit;
+    const severity = incident.severity || incident.incident_severity?.name || 'Unknown';
+    
+    // Business unit counting
     if (businessUnitBreakdown[businessUnit]) {
       businessUnitBreakdown[businessUnit].total++;
       
@@ -1517,6 +1523,22 @@ function generateWeeklySummary(allIncidents, incidentsWithMissingFields, inciden
         businessUnitBreakdown[businessUnit].complete++;
       }
     }
+    
+    // Severity counting
+    if (!severityBreakdown[severity]) {
+      severityBreakdown[severity] = { total: 0, complete: 0, incomplete: 0 };
+    }
+    severityBreakdown[severity].total++;
+    
+    const hasMissingFields = incidentsWithMissingFields.some(missing => 
+      missing.reference === incident.reference
+    );
+    
+    if (hasMissingFields) {
+      severityBreakdown[severity].incomplete++;
+    } else {
+      severityBreakdown[severity].complete++;
+    }
   });
   
   // Calculate completion percentages by business unit
@@ -1524,6 +1546,13 @@ function generateWeeklySummary(allIncidents, incidentsWithMissingFields, inciden
     const unitData = businessUnitBreakdown[unit];
     unitData.completionPercentage = unitData.total > 0 ? 
       ((unitData.complete / unitData.total) * 100).toFixed(1) : '0.0';
+  });
+  
+  // Calculate completion percentages by severity
+  Object.keys(severityBreakdown).forEach(severity => {
+    const severityData = severityBreakdown[severity];
+    severityData.completionPercentage = severityData.total > 0 ? 
+      ((severityData.complete / severityData.total) * 100).toFixed(1) : '0.0';
   });
   
   // Top missing fields analysis
@@ -1554,6 +1583,9 @@ function generateWeeklySummary(allIncidents, incidentsWithMissingFields, inciden
     // Business unit breakdown
     businessUnitBreakdown,
     
+    // Severity breakdown (NEW)
+    severityBreakdown,
+    
     // Field analysis
     topMissingFields,
     
@@ -1567,6 +1599,7 @@ function generateWeeklySummary(allIncidents, incidentsWithMissingFields, inciden
   console.log(`   Total incidents: ${totalIncidents}`);
   console.log(`   Complete: ${completeIncidents} (${completionPercentage}%)`);
   console.log(`   Incomplete: ${incompleteIncidents} (${incompletionPercentage}%)`);
+  console.log(`   Severity breakdown: ${Object.keys(severityBreakdown).length} severity levels`);
   
   return summary;
 }
@@ -1842,6 +1875,50 @@ function buildWeeklySummaryEmailContent(weeklySummary, config) {
     `;
   });
   
+  // Build severity breakdown rows
+  let severityRows = '';
+  const severityOrder = ['SEV0', 'SEV1', 'SEV2', 'SEV3', 'SEV4', 'Unknown']; // Define severity order
+  
+  // Sort severities by the defined order, with any others at the end
+  const sortedSeverities = Object.keys(weeklySummary.severityBreakdown).sort((a, b) => {
+    const aIndex = severityOrder.indexOf(a);
+    const bIndex = severityOrder.indexOf(b);
+    if (aIndex === -1 && bIndex === -1) return a.localeCompare(b);
+    if (aIndex === -1) return 1;
+    if (bIndex === -1) return -1;
+    return aIndex - bIndex;
+  });
+  
+  sortedSeverities.forEach(severity => {
+    const data = weeklySummary.severityBreakdown[severity];
+    const severityColor = severity === 'SEV0' ? '#dc3545' : // Red for SEV0
+                         severity === 'SEV1' ? '#fd7e14' : // Orange for SEV1
+                         severity === 'SEV2' ? '#ffc107' : // Yellow for SEV2
+                         severity === 'SEV3' ? '#28a745' : // Green for SEV3
+                         severity === 'SEV4' ? '#6c757d' : // Gray for SEV4
+                         '#17a2b8'; // Blue for others/Unknown
+    
+    severityRows += `
+      <tr>
+        <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; color: ${severityColor};">
+          ${severity}
+        </td>
+        <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">
+          ${data.total}
+        </td>
+        <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: #28a745;">
+          ${data.complete}
+        </td>
+        <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: #dc3545;">
+          ${data.incomplete}
+        </td>
+        <td style="padding: 8px; border: 1px solid #ddd; text-align: center; font-weight: bold;">
+          ${data.completionPercentage}%
+        </td>
+      </tr>
+    `;
+  });
+  
   // Build top missing fields
   let topFieldsRows = '';
   weeklySummary.topMissingFields.forEach(({ field, count }) => {
@@ -1862,6 +1939,88 @@ function buildWeeklySummaryEmailContent(weeklySummary, config) {
       </tr>
     `;
   }
+  
+  // Build incident list (clickable, grouped by business unit)
+  let incidentListHtml = '';
+  const businessUnits = ['Square', 'Cash', 'Afterpay'];
+  
+  businessUnits.forEach(businessUnit => {
+    const unitIncidents = weeklySummary.allIncidents.filter(incident => 
+      incident.businessUnit === businessUnit
+    );
+    
+    if (unitIncidents.length > 0) {
+      const unitColor = businessUnit === 'Square' ? '#1f77b4' : 
+                       businessUnit === 'Cash' ? '#ff7f0e' : '#2ca02c';
+      
+      incidentListHtml += `
+        <div style="margin-bottom: 20px;">
+          <h4 style="color: ${unitColor}; margin-bottom: 10px;">${businessUnit} (${unitIncidents.length} incidents)</h4>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
+            <thead>
+              <tr style="background-color: #f8f9fa;">
+                <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Incident</th>
+                <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Title</th>
+                <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Severity</th>
+                <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Status</th>
+                <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Fields</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+      
+      unitIncidents.forEach(incident => {
+        const severity = incident.severity || incident.incident_severity?.name || 'Unknown';
+        const status = incident.status || incident.incident_status?.name || 'Unknown';
+        const title = incident.name || incident.summary || 'No title available';
+        const incidentUrl = incident.url || '#';
+        
+        // Check if incident has missing fields
+        const hasMissingFields = weeklySummary.incidentsWithMissingFields.some(missing => 
+          missing.reference === incident.reference
+        );
+        
+        const fieldStatus = hasMissingFields ? 
+          `<span style="color: #dc3545; font-weight: bold;">Incomplete</span>` :
+          `<span style="color: #28a745; font-weight: bold;">Complete</span>`;
+        
+        const severityColor = severity === 'SEV0' ? '#dc3545' : // Red for SEV0
+                             severity === 'SEV1' ? '#fd7e14' : // Orange for SEV1
+                             severity === 'SEV2' ? '#ffc107' : // Yellow for SEV2
+                             severity === 'SEV3' ? '#28a745' : // Green for SEV3
+                             severity === 'SEV4' ? '#6c757d' : // Gray for SEV4
+                             '#17a2b8'; // Blue for others/Unknown
+        
+        incidentListHtml += `
+          <tr>
+            <td style="padding: 8px; border: 1px solid #ddd;">
+              <a href="${incidentUrl}" target="_blank" style="color: #007bff; text-decoration: none; font-weight: bold;">
+                ${incident.reference}
+              </a>
+            </td>
+            <td style="padding: 8px; border: 1px solid #ddd; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              ${title}
+            </td>
+            <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">
+              <span style="color: ${severityColor}; font-weight: bold;">${severity}</span>
+            </td>
+            <td style="padding: 8px; border: 1px solid #ddd; text-align: center; font-size: 12px;">
+              ${status}
+            </td>
+            <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">
+              ${fieldStatus}
+            </td>
+          </tr>
+        `;
+      });
+      
+      incidentListHtml += `
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+  });
   
   const html = `
     <html>
@@ -1926,6 +2085,24 @@ function buildWeeklySummaryEmailContent(weeklySummary, config) {
           </table>
         </div>
         
+        <div class="metric-card">
+          <h2>🚨 Severity Breakdown</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Severity</th>
+                <th>Total Incidents</th>
+                <th>Complete Fields</th>
+                <th>Missing Fields</th>
+                <th>Completion Rate</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${severityRows}
+            </tbody>
+          </table>
+        </div>
+        
         ${weeklySummary.topMissingFields.length > 0 ? `
         <div class="metric-card">
           <h2>⚠️ Top Missing Fields</h2>
@@ -1942,6 +2119,12 @@ function buildWeeklySummaryEmailContent(weeklySummary, config) {
           </table>
         </div>
         ` : ''}
+        
+        <div class="metric-card">
+          <h2>📋 All Incidents Opened This Week</h2>
+          <p style="margin-bottom: 15px; color: #666;">Click on incident references to open them directly in your incident management platform.</p>
+          ${incidentListHtml}
+        </div>
         
         <div class="metric-card">
           <h2>📋 Required Fields Monitored</h2>
