@@ -2160,13 +2160,13 @@ function buildWeeklySummaryEmailContent(weeklySummary, config) {
         const title = incident.name || incident.summary || 'No title available';
         const incidentUrl = incident.url || '#';
         
-        // Check if incident has missing fields
-        const hasMissingFields = weeklySummary.incidentsWithMissingFields.some(missing => 
+        // Check if incident has missing fields and get the specific missing fields
+        const missingFieldsIncident = weeklySummary.incidentsWithMissingFields.find(missing => 
           missing.reference === incident.reference
         );
         
-        const fieldStatus = hasMissingFields ? 
-          `<span style="color: #dc3545; font-weight: bold;">Incomplete</span>` :
+        const fieldStatus = missingFieldsIncident ? 
+          `<span style="color: #dc3545; font-weight: bold;">Incomplete: ${missingFieldsIncident.missingFields.join(', ')}</span>` :
           `<span style="color: #28a745; font-weight: bold;">Complete</span>`;
         
         const severityColor = severity === 'SEV0' ? '#dc3545' : // Red for SEV0
@@ -2264,8 +2264,8 @@ function buildWeeklySummaryEmailContent(weeklySummary, config) {
               <tr>
                 <th>Business Unit</th>
                 <th>Total Incidents</th>
-                <th>Complete Fields</th>
-                <th>Missing Fields</th>
+                <th>Incidents with ALL Fields Completed</th>
+                <th>Incidents with Missing Fields</th>
                 <th>Completion Rate</th>
               </tr>
             </thead>
@@ -2282,8 +2282,8 @@ function buildWeeklySummaryEmailContent(weeklySummary, config) {
               <tr>
                 <th>Severity</th>
                 <th>Total Incidents</th>
-                <th>Complete Fields</th>
-                <th>Missing Fields</th>
+                <th>Incidents with ALL Fields Completed</th>
+                <th>Incidents with Missing Fields</th>
                 <th>Completion Rate</th>
               </tr>
             </thead>
