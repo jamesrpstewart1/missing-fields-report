@@ -1565,17 +1565,34 @@ function runMissingFieldsCheckWithDateRange(startDate, endDate, rangeType) {
 
 /**
  * Main function - Weekly summary report
- * Generates a summary of incidents opened in the past week and field completion rates
+ * Generates a summary of incidents opened in the previous Monday-Sunday period
  */
 function runWeeklySummaryReport() {
   console.log('📊 Starting weekly summary report...');
   
   try {
-    // Calculate date range for the past week (7 days)
-    const endDate = new Date();
-    const startDate = new Date(Date.now() - (7 * 24 * 60 * 60 * 1000)); // 7 days ago
+    // Calculate date range for the previous Monday-Sunday week
+    const today = new Date();
+    const currentDayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
     
-    console.log(`📅 Weekly period: ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`);
+    // Calculate the previous Monday (start of the previous week)
+    let daysToSubtract;
+    if (currentDayOfWeek === 0) { // Sunday
+      daysToSubtract = 6; // Go back to previous Monday
+    } else { // Monday (1) to Saturday (6)
+      daysToSubtract = currentDayOfWeek + 6; // Go back to previous Monday
+    }
+    
+    const startDate = new Date(today);
+    startDate.setDate(today.getDate() - daysToSubtract);
+    startDate.setHours(0, 0, 0, 0); // Start of Monday
+    
+    // Calculate the previous Sunday (end of the previous week)
+    const endDate = new Date(startDate);
+    endDate.setDate(startDate.getDate() + 6); // Add 6 days to get to Sunday
+    endDate.setHours(23, 59, 59, 999); // End of Sunday
+    
+    console.log(`📅 Weekly period (Previous Monday-Sunday): ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`);
     
     // Get configuration
     const config = getConfiguration();
@@ -1610,7 +1627,7 @@ function runWeeklySummaryReport() {
     console.log(`⚠️ Incidents with missing fields: ${incidentsWithMissingFields.length}`);
     
     // Generate weekly summary metrics
-    const weeklySummary = generateWeeklySummary(allIncidents, incidentsWithMissingFields, incidentsWithCompleteFields);
+    const weeklySummary = generateWeeklySummary(allIncidents, incidentsWithMissingFields, incidentsWithCompleteFields, startDate, endDate);
     
     // Send weekly summary email
     sendWeeklySummaryEmail(weeklySummary, config);
@@ -1646,7 +1663,7 @@ function runWeeklySummaryReport() {
 /**
  * Generate weekly summary metrics
  */
-function generateWeeklySummary(allIncidents, incidentsWithMissingFields, incidentsWithCompleteFields) {
+function generateWeeklySummary(allIncidents, incidentsWithMissingFields, incidentsWithCompleteFields, startDate, endDate) {
   console.log('📊 Generating weekly summary metrics...');
   
   const totalIncidents = allIncidents.length;
@@ -1745,9 +1762,9 @@ function generateWeeklySummary(allIncidents, incidentsWithMissingFields, inciden
     .map(([field, count]) => ({ field, count }));
   
   const summary = {
-    // Date range
-    startDate: new Date(Date.now() - (7 * 24 * 60 * 60 * 1000)),
-    endDate: new Date(),
+    // Date range - use the passed startDate and endDate parameters
+    startDate: startDate || new Date(),
+    endDate: endDate || new Date(),
     
     // Overall metrics
     totalIncidents,
@@ -1985,6 +2002,23 @@ function sendWeeklySummaryEmail(weeklySummary, config) {
 function buildWeeklySummaryEmailContent(weeklySummary, config) {
   console.log('📧 Building weekly summary email content...');
   
+  // Format dates in a more readable format: "Monday 1 Sept to Sunday 7 Sept 2025"
+  const startDateObj = new Date(weeklySummary.startDate);
+  const endDateObj = new Date(weeklySummary.endDate);
+  
+  const startDayName = startDateObj.toLocaleDateString('en-US', { weekday: 'long' });
+  const startDay = startDateObj.getDate();
+  const startMonth = startDateObj.toLocaleDateString('en-US', { month: 'short' });
+  
+  const endDayName = endDateObj.toLocaleDateString('en-US', { weekday: 'long' });
+  const endDay = endDateObj.getDate();
+  const endMonth = endDateObj.toLocaleDateString('en-US', { month: 'short' });
+  const endYear = endDateObj.getFullYear();
+  
+  // Create readable date range
+  const readableDateRange = `${startDayName} ${startDay} ${startMonth} to ${endDayName} ${endDay} ${endMonth} ${endYear}`;
+  
+  // Keep the original format for fallback
   const startDate = weeklySummary.startDate.toLocaleDateString();
   const endDate = weeklySummary.endDate.toLocaleDateString();
   
@@ -2192,8 +2226,13 @@ function buildWeeklySummaryEmailContent(weeklySummary, config) {
       <body>
         <div class="header">
           <h1>📊 Weekly Incident Summary Report</h1>
-          <p><strong>Period:</strong> ${startDate} to ${endDate}</p>
+          <p><strong>Period:</strong> ${startDate} to ${endDate} <em>(${readableDateRange})</em></p>
           <p><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
+          
+          <table style="margin-top: 15px; background-color: #f8f9fa; border-radius: 4px;">
+            <tr><th style="width: 200px; background-color: #f8f9fa;">🔍 Severity Filtering</th><td style="background-color: #f8f9fa;">${getSeverityFilteringSummary(config).status}</td></tr>
+            ${config.enableSeverityFiltering ? `<tr><th style="background-color: #f8f9fa;">Severity Criteria</th><td style="background-color: #f8f9fa;">${getSeverityFilteringSummary(config).criteria}</td></tr>` : ''}
+          </table>
         </div>
         
         <div class="metric-card">
@@ -2216,11 +2255,6 @@ function buildWeeklySummaryEmailContent(weeklySummary, config) {
               <div class="metric-label">Incomplete Incidents</div>
             </div>
           </div>
-          
-          <table style="margin-top: 15px;">
-            <tr><th style="width: 200px;">Severity Filtering</th><td>${getSeverityFilteringSummary(config).status}</td></tr>
-            ${config.enableSeverityFiltering ? `<tr><th>Severity Criteria</th><td>${getSeverityFilteringSummary(config).criteria}</td></tr>` : ''}
-          </table>
         </div>
         
         <div class="metric-card">
@@ -2285,11 +2319,11 @@ function buildWeeklySummaryEmailContent(weeklySummary, config) {
         <div class="metric-card">
           <h2>📋 Required Fields Monitored</h2>
           <ul>
-            <li><strong>Affected Markets</strong> - Geographic impact areas</li>
-            <li><strong>Causal Type</strong> - Root cause classification</li>
-            <li><strong>Stabilization Type</strong> - Resolution method</li>
-            <li><strong>Impact Start Date</strong> - When impact began</li>
-            <li><strong>Transcript URL</strong> - Meeting documentation</li>
+            <li><strong>Affected Markets</strong></li>
+            <li><strong>Causal Type</strong></li>
+            <li><strong>Stabilization Type</strong></li>
+            <li><strong>Impact Start Date</strong></li>
+            <li><strong>Transcript URL</strong></li>
           </ul>
         </div>
         

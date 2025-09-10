@@ -7,6 +7,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.0] - 2025-09-10
+
+### Added
+- **📊 Weekly Summary Report System**: Comprehensive weekly incident summary automation
+  - Automated weekly reports running every Monday at 09:00 UTC
+  - Previous Monday-Sunday date range calculation with proper edge case handling
+  - Business unit breakdown with completion rates (Square, Cash, Afterpay)
+  - Severity breakdown analysis with color-coded metrics
+  - Top missing fields analysis and trending
+  - Complete incident listing with clickable links to incident management platforms
+  - Executive summary with key metrics and completion percentages
+
+### Enhanced
+- **📧 Email Report Formatting**: Significantly improved weekly email template
+  - Professional HTML styling with metric cards and color-coded business units
+  - Readable date format: "Monday 1 Sept to Sunday 7 Sept 2025"
+  - Severity filtering information moved to header section for better organization
+  - Fixed background color formatting issues in severity filtering section
+  - Simplified "Required Fields Monitored" section - removed field descriptions, showing only field names
+  - Responsive design with proper table formatting and visual hierarchy
+
+### Technical Implementation
+- **New Functions**:
+  - `runWeeklySummaryReport()`: Main weekly report generation function
+  - `generateWeeklySummary()`: Weekly metrics calculation and analysis
+  - `buildWeeklySummaryEmailContent()`: Professional HTML email template builder
+  - `sendWeeklySummaryEmail()`: Weekly email delivery system
+  - `setupWeeklyAutomation()`: Weekly trigger configuration
+  - `cancelWeeklyAutomation()`: Weekly automation management
+  - `showWeeklyAutomationStatus()`: Status monitoring and reporting
+  - `weeklyAutomatedSummary()`: Automated execution handler
+  - `logWeeklyExecution()`: Weekly execution logging
+
+### Configuration & Automation
+- **Weekly Automation System**:
+  - Time-driven triggers for Monday 09:00 UTC execution
+  - Automatic date range calculation for previous Monday-Sunday period
+  - Configurable email recipients via existing Config sheet
+  - Menu integration with weekly summary management options
+  - Status monitoring and trigger management capabilities
+
+### Date Range & Filtering
+- **Smart Date Calculation**: 
+  - Handles all days of the week correctly for previous Monday-Sunday calculation
+  - Proper timezone handling and edge case management
+  - Fixed date discrepancy between Google Sheet output and email reports
+  - Consistent date formatting across all report components
+
+### User Interface
+- **Enhanced Menu System**: Added comprehensive weekly summary management
+  - "Generate Weekly Summary Now" for immediate execution
+  - "Setup Weekly Automation" for trigger configuration
+  - "Cancel Weekly Automation" for automation management
+  - "Show Weekly Status" for monitoring and status checking
+
+### Bug Fixes
+- **Date Synchronization**: Fixed discrepancy between Google Sheet and email report dates
+- **Background Color**: Resolved formatting issues in severity filtering section
+- **Field Descriptions**: Removed redundant descriptions from "Required Fields Monitored" section
+- **Date Format**: Improved readability with human-friendly date format display
+
+### Documentation
+- **Updated Menu System**: Enhanced custom menu with weekly summary options
+- **Comprehensive Logging**: Detailed execution logging for weekly report generation
+- **Status Monitoring**: Real-time status checking and automation management
+
+### Files Modified
+- `src/apps-script/Code.gs`: Major enhancements with weekly summary system implementation
+
 ## [2.2.0] - 2025-09-09
 
 ### Added
