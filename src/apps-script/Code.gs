@@ -739,6 +739,257 @@ function debugSummarySheetUpdate() {
 }
 
 /**
+ * Debug weekly report severity filtering issue
+ */
+function debugWeeklySeverityFiltering() {
+  console.log('🔍 Debugging weekly report severity filtering issue...');
+  
+  try {
+    const config = getConfiguration();
+    
+    console.log('📋 Configuration Analysis:');
+    console.log(`   enableSeverityFiltering: ${config.enableSeverityFiltering}`);
+    console.log(`   incidentioSeverities: ${JSON.stringify(config.incidentioSeverities)}`);
+    console.log(`   firehydrantSeverities: ${JSON.stringify(config.firehydrantSeverities)}`);
+    console.log(`   includeInternalImpact: ${config.includeInternalImpact}`);
+    
+    // Check Config sheet directly
+    console.log('📋 Checking Config sheet directly...');
+    const configSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Config');
+    if (configSheet) {
+      const data = configSheet.getDataRange().getValues();
+      console.log('📊 Config sheet contents:');
+      data.forEach((row, index) => {
+        if (index === 0) {
+          console.log(`   Headers: ${row.join(', ')}`);
+        } else if (row[0] && row[1]) {
+          console.log(`   ${row[0]}: ${row[1]}`);
+          if (row[0] === 'enableSeverityFiltering') {
+            console.log(`   🎯 FOUND enableSeverityFiltering: ${row[1]} (type: ${typeof row[1]})`);
+          }
+        }
+      });
+    } else {
+      console.log('   ❌ No Config sheet found');
+    }
+    
+    // Test the weekly filtering logic with severity filtering disabled
+    console.log('📋 Testing with severity filtering disabled...');
+    const testConfig = { ...config };
+    testConfig.enableSeverityFiltering = false;
+    testConfig.customDateRange = true;
+    testConfig.dateRangeType = 'weekly_summary';
+    testConfig.startDate = new Date(Date.now() - (7 * 24 * 60 * 60 * 1000));
+    testConfig.endDate = new Date();
+    
+    console.log(`📅 Test date range: ${testConfig.startDate.toLocaleDateString()} to ${testConfig.endDate.toLocaleDateString()}`);
+    
+    // Test Square incidents
+    console.log('📋 Testing Square incidents...');
+    const squareIncidents = fetchIncidentsFromIncidentIOForWeekly('Square', testConfig);
+    console.log(`   Square incidents (no severity filter): ${squareIncidents.length}`);
+    
+    // Test with severity filtering enabled
+    console.log('📋 Testing with severity filtering enabled...');
+    const testConfigWithSeverity = { ...config };
+    testConfigWithSeverity.customDateRange = true;
+    testConfigWithSeverity.dateRangeType = 'weekly_summary';
+    testConfigWithSeverity.startDate = new Date(Date.now() - (7 * 24 * 60 * 60 * 1000));
+    testConfigWithSeverity.endDate = new Date();
+    
+    const squareIncidentsWithSeverity = fetchIncidentsFromIncidentIOForWeekly('Square', testConfigWithSeverity);
+    console.log(`   Square incidents (with severity filter): ${squareIncidentsWithSeverity.length}`);
+    
+    // Show results
+    const ui = SpreadsheetApp.getUi();
+    ui.alert(
+      '🔍 Weekly Severity Filtering Debug',
+      `CONFIGURATION:\n` +
+      `• enableSeverityFiltering: ${config.enableSeverityFiltering}\n` +
+      `• incidentioSeverities: ${JSON.stringify(config.incidentioSeverities)}\n` +
+      `• firehydrantSeverities: ${JSON.stringify(config.firehydrantSeverities)}\n\n` +
+      `RESULTS:\n` +
+      `• Square incidents (no severity filter): ${squareIncidents.length}\n` +
+      `• Square incidents (with severity filter): ${squareIncidentsWithSeverity.length}\n\n` +
+      `${squareIncidents.length > 0 && squareIncidentsWithSeverity.length === 0 ? 
+        '❌ SEVERITY FILTERING IS BLOCKING ALL INCIDENTS!' : 
+        '✅ Severity filtering appears to be working correctly'}\n\n` +
+      `Check console logs for detailed Config sheet analysis.`,
+      ui.ButtonSet.OK
+    );
+    
+  } catch (error) {
+    console.error('❌ Weekly severity filtering debug failed:', error.toString());
+    
+    const ui = SpreadsheetApp.getUi();
+    ui.alert(
+      '❌ Debug Failed',
+      `Weekly severity filtering debug failed:\n\n${error.toString()}`,
+      ui.ButtonSet.OK
+    );
+  }
+}
+
+/**
+ * Fix weekly report by disabling severity filtering in Config sheet
+ */
+function fixWeeklyReportSeverityFiltering() {
+  console.log('🔧 Fixing weekly report by disabling severity filtering...');
+  
+  try {
+    const configSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Config');
+    
+    if (!configSheet) {
+      const ui = SpreadsheetApp.getUi();
+      ui.alert(
+        'ℹ️ No Config Sheet Found',
+        'No Config sheet found. The system will use default settings where severity filtering is disabled.',
+        ui.ButtonSet.OK
+      );
+      return;
+    }
+    
+    const data = configSheet.getDataRange().getValues();
+    let severityFilteringRowIndex = -1;
+    
+    // Find the enableSeverityFiltering row
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] === 'enableSeverityFiltering') {
+        severityFilteringRowIndex = i;
+        break;
+      }
+    }
+    
+    if (severityFilteringRowIndex === -1) {
+      // Add the parameter if it doesn't exist
+      const newRow = configSheet.getLastRow() + 1;
+      configSheet.getRange(newRow, 1).setValue('enableSeverityFiltering');
+      configSheet.getRange(newRow, 2).setValue(false);
+      console.log('✅ Added enableSeverityFiltering: false to Config sheet');
+    } else {
+      // Update existing parameter
+      const currentValue = data[severityFilteringRowIndex][1];
+      configSheet.getRange(severityFilteringRowIndex + 1, 2).setValue(false);
+      console.log(`✅ Updated enableSeverityFiltering from ${currentValue} to false`);
+    }
+    
+    // Test the fix
+    console.log('🧪 Testing the fix...');
+    const config = getConfiguration();
+    console.log(`   New enableSeverityFiltering value: ${config.enableSeverityFiltering}`);
+    
+    // Show success message
+    const ui = SpreadsheetApp.getUi();
+    ui.alert(
+      '✅ Weekly Report Fixed',
+      `Severity filtering has been disabled in your Config sheet!\n\n` +
+      `• enableSeverityFiltering is now set to: false\n` +
+      `• Weekly reports will now include all incidents regardless of severity\n` +
+      `• Daily reports continue to work as before\n\n` +
+      `Try running the weekly summary report again - it should now show incidents!`,
+      ui.ButtonSet.OK
+    );
+    
+  } catch (error) {
+    console.error('❌ Failed to fix weekly report severity filtering:', error.toString());
+    
+    const ui = SpreadsheetApp.getUi();
+    ui.alert(
+      '❌ Fix Failed',
+      `Failed to fix weekly report severity filtering:\n\n${error.toString()}`,
+      ui.ButtonSet.OK
+    );
+  }
+}
+
+/**
+ * Quick fix for weekly report - disable severity filtering temporarily
+ */
+function quickFixWeeklyReport() {
+  console.log('🔧 Quick fix: Running weekly report with severity filtering disabled...');
+  
+  try {
+    // Calculate date range for the past week (7 days)
+    const endDate = new Date();
+    const startDate = new Date(Date.now() - (7 * 24 * 60 * 60 * 1000)); // 7 days ago
+    
+    console.log(`📅 Weekly period: ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`);
+    
+    // Get configuration and disable severity filtering
+    const config = getConfiguration();
+    config.enableSeverityFiltering = false; // DISABLE SEVERITY FILTERING
+    
+    // Override with weekly date range
+    config.customDateRange = true;
+    config.dateRangeType = 'weekly_summary';
+    config.startDate = startDate;
+    config.endDate = endDate;
+    
+    // Fetch incidents from all platforms for the past week using WEEKLY filtering
+    const allIncidents = [];
+    
+    // incident.io - Square and Cash
+    const squareIncidents = fetchIncidentsFromIncidentIOForWeekly('Square', config);
+    const cashIncidents = fetchIncidentsFromIncidentIOForWeekly('Cash', config);
+    
+    // FireHydrant - Afterpay
+    const afterpayIncidents = fetchIncidentsFromFireHydrantForWeekly('Afterpay', config);
+    
+    allIncidents.push(...squareIncidents, ...cashIncidents, ...afterpayIncidents);
+    
+    console.log(`📊 Total incidents opened this week (no severity filter): ${allIncidents.length}`);
+    
+    // Validate required fields to determine completion rates
+    const incidentsWithMissingFields = validateRequiredFields(allIncidents);
+    const incidentsWithCompleteFields = allIncidents.filter(incident => 
+      !incidentsWithMissingFields.some(missing => missing.reference === incident.reference)
+    );
+    
+    console.log(`✅ Incidents with complete fields: ${incidentsWithCompleteFields.length}`);
+    console.log(`⚠️ Incidents with missing fields: ${incidentsWithMissingFields.length}`);
+    
+    // Generate weekly summary metrics
+    const weeklySummary = generateWeeklySummary(allIncidents, incidentsWithMissingFields, incidentsWithCompleteFields);
+    
+    // Send weekly summary email
+    sendWeeklySummaryEmail(weeklySummary, config);
+    
+    // Log weekly execution
+    logWeeklyExecution(weeklySummary);
+    
+    console.log('✅ Weekly summary report (with severity filtering disabled) completed successfully!');
+    
+    // Show completion message
+    const ui = SpreadsheetApp.getUi();
+    ui.alert(
+      '✅ Weekly Summary Complete (Fixed)',
+      `Weekly summary report completed with severity filtering disabled!\n\n` +
+      `📊 WEEKLY METRICS:\n` +
+      `• Total incidents opened: ${weeklySummary.totalIncidents}\n` +
+      `• Complete fields: ${weeklySummary.completeIncidents} (${weeklySummary.completionPercentage}%)\n` +
+      `• Missing fields: ${weeklySummary.incompleteIncidents} (${weeklySummary.incompletionPercentage}%)\n\n` +
+      `📧 Weekly summary email sent to configured recipients.\n` +
+      `📅 Period: ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}\n\n` +
+      `🔧 NOTE: Severity filtering was disabled for this run to fix the 0 incidents issue.`,
+      ui.ButtonSet.OK
+    );
+    
+  } catch (error) {
+    console.error('❌ Quick fix weekly summary report failed:', error.toString());
+    console.error('Stack trace:', error.stack);
+    
+    const ui = SpreadsheetApp.getUi();
+    ui.alert(
+      '❌ Quick Fix Failed',
+      `Quick fix weekly summary report failed:\n\n${error.toString()}`,
+      ui.ButtonSet.OK
+    );
+    
+    throw error;
+  }
+}
+
+/**
  * Debug configuration loading to see what maxLookbackDays is actually set to
  */
 function debugConfigurationLoading() {
