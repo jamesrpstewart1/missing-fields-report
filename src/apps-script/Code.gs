@@ -1671,10 +1671,91 @@ function generateWeeklySummary(allIncidents, incidentsWithMissingFields, inciden
   const incompleteIncidents = incidentsWithMissingFields.length;
   
   // Calculate percentages
-  const completionPercentage = totalIncidents > 0 ? 
+  const incidentCompletionPercentage = totalIncidents > 0 ? 
     ((completeIncidents / totalIncidents) * 100).toFixed(1) : '0.0';
   const incompletionPercentage = totalIncidents > 0 ? 
     ((incompleteIncidents / totalIncidents) * 100).toFixed(1) : '0.0';
+  
+  // Calculate Essential Field Completion Rate
+  // This shows the percentage of all essential fields that are completed across all incidents
+  const requiredFields = ['Affected Markets', 'Causal Type', 'Stabilization Type', 'Impact Start Date', 'Transcript URL']; // Your actual required fields
+  const totalPossibleFields = totalIncidents * requiredFields.length;
+  
+  let totalCompletedFields = 0;
+  
+  // Field-by-field analysis
+  const fieldAnalysis = {};
+  requiredFields.forEach(field => {
+    fieldAnalysis[field] = {
+      total: totalIncidents,
+      missing: 0,
+      complete: 0,
+      completionRate: 0,
+      businessUnitBreakdown: {
+        'Square': { total: 0, missing: 0, complete: 0 },
+        'Cash': { total: 0, missing: 0, complete: 0 },
+        'Afterpay': { total: 0, missing: 0, complete: 0 }
+      }
+    };
+  });
+  
+  // Analyze each incident for field completion
+  allIncidents.forEach(incident => {
+    const businessUnit = incident.businessUnit;
+    const missingFieldsForIncident = incidentsWithMissingFields.find(missing => 
+      missing.reference === incident.reference
+    );
+    
+    if (missingFieldsForIncident) {
+      // This incident has some missing fields
+      const completedFieldsCount = requiredFields.length - missingFieldsForIncident.missingFields.length;
+      totalCompletedFields += completedFieldsCount;
+      
+      // Track each field's status
+      requiredFields.forEach(field => {
+        if (businessUnit && fieldAnalysis[field].businessUnitBreakdown[businessUnit]) {
+          fieldAnalysis[field].businessUnitBreakdown[businessUnit].total++;
+          
+          if (missingFieldsForIncident.missingFields.includes(field)) {
+            fieldAnalysis[field].missing++;
+            fieldAnalysis[field].businessUnitBreakdown[businessUnit].missing++;
+          } else {
+            fieldAnalysis[field].complete++;
+            fieldAnalysis[field].businessUnitBreakdown[businessUnit].complete++;
+          }
+        }
+      });
+    } else {
+      // This incident has all fields complete
+      totalCompletedFields += requiredFields.length;
+      
+      // All fields are complete for this incident
+      requiredFields.forEach(field => {
+        fieldAnalysis[field].complete++;
+        if (businessUnit && fieldAnalysis[field].businessUnitBreakdown[businessUnit]) {
+          fieldAnalysis[field].businessUnitBreakdown[businessUnit].total++;
+          fieldAnalysis[field].businessUnitBreakdown[businessUnit].complete++;
+        }
+      });
+    }
+  });
+  
+  // Calculate completion rates for each field
+  Object.keys(fieldAnalysis).forEach(field => {
+    const fieldData = fieldAnalysis[field];
+    fieldData.completionRate = fieldData.total > 0 ? 
+      ((fieldData.complete / fieldData.total) * 100).toFixed(1) : '0.0';
+    
+    // Calculate business unit completion rates for this field
+    Object.keys(fieldData.businessUnitBreakdown).forEach(unit => {
+      const unitData = fieldData.businessUnitBreakdown[unit];
+      unitData.completionRate = unitData.total > 0 ? 
+        ((unitData.complete / unitData.total) * 100).toFixed(1) : '0.0';
+    });
+  });
+  
+  const essentialFieldCompletionPercentage = totalPossibleFields > 0 ? 
+    ((totalCompletedFields / totalPossibleFields) * 100).toFixed(1) : '0.0';
   
   // Business unit breakdown
   const businessUnitBreakdown = {
@@ -1770,8 +1851,9 @@ function generateWeeklySummary(allIncidents, incidentsWithMissingFields, inciden
     totalIncidents,
     completeIncidents,
     incompleteIncidents,
-    completionPercentage: parseFloat(completionPercentage),
+    completionPercentage: parseFloat(incidentCompletionPercentage),
     incompletionPercentage: parseFloat(incompletionPercentage),
+    essentialFieldCompletionPercentage: parseFloat(essentialFieldCompletionPercentage),
     
     // Business unit breakdown
     businessUnitBreakdown,
@@ -1781,6 +1863,7 @@ function generateWeeklySummary(allIncidents, incidentsWithMissingFields, inciden
     
     // Field analysis
     topMissingFields,
+    fieldAnalysis,
     
     // Raw data for email template
     allIncidents,
@@ -1790,8 +1873,9 @@ function generateWeeklySummary(allIncidents, incidentsWithMissingFields, inciden
   
   console.log(`📊 Weekly summary generated:`);
   console.log(`   Total incidents: ${totalIncidents}`);
-  console.log(`   Complete: ${completeIncidents} (${completionPercentage}%)`);
+  console.log(`   Complete: ${completeIncidents} (${incidentCompletionPercentage}%)`);
   console.log(`   Incomplete: ${incompleteIncidents} (${incompletionPercentage}%)`);
+  console.log(`   Essential field completion: ${essentialFieldCompletionPercentage}%`);
   console.log(`   Severity breakdown: ${Object.keys(severityBreakdown).length} severity levels`);
   
   return summary;
@@ -2225,34 +2309,48 @@ function buildWeeklySummaryEmailContent(weeklySummary, config) {
       </head>
       <body>
         <div class="header">
-          <h1>📊 Weekly Incident Summary Report</h1>
-          <p><strong>Period:</strong> ${startDate} to ${endDate} <em>(${readableDateRange})</em></p>
-          <p><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
+          <div style="text-align: left; margin-bottom: 25px;">
+            <h1 style="color: #2c3e50; font-size: 28px; margin-bottom: 15px; font-weight: 600;">📊 Weekly Incident Summary Report</h1>
+            <div style="background-color: #e8f4fd; padding: 12px; border-radius: 8px; border-left: 4px solid #007bff; margin: 15px 0; display: inline-block;">
+              <p style="margin: 0; font-size: 16px;"><strong style="color: #495057;">Period:</strong> <span style="color: #007bff; font-weight: 500;">${startDate} to ${endDate}</span></p>
+              <p style="margin: 5px 0 0 0; font-size: 14px; color: #6c757d;"><strong style="font-weight: 700;">${readableDateRange}</strong></p>
+            </div>
+            <p style="margin: 10px 0; font-size: 14px; color: #6c757d;"><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
+          </div>
           
-          <table style="margin-top: 15px; background-color: #f8f9fa; border-radius: 4px;">
-            <tr><th style="width: 200px; background-color: #f8f9fa;">🔍 Severity Filtering</th><td style="background-color: #f8f9fa;">${getSeverityFilteringSummary(config).status}</td></tr>
-            ${config.enableSeverityFiltering ? `<tr><th style="background-color: #f8f9fa;">Severity Criteria</th><td style="background-color: #f8f9fa;">${getSeverityFilteringSummary(config).criteria}</td></tr>` : ''}
-          </table>
+          <div style="background-color: #f8f9fa; padding: 10px 15px; border-radius: 6px;">
+            <p style="margin: 0; font-size: 14px; color: #495057;">
+              <strong>🔍 Severity Filtering:</strong> 
+              <span style="margin-left: 8px; padding: 2px 8px; background-color: ${config.enableSeverityFiltering ? '#d4edda' : '#f8d7da'}; color: ${config.enableSeverityFiltering ? '#155724' : '#721c24'}; border-radius: 12px; font-size: 12px; font-weight: 500;">
+                ${getSeverityFilteringSummary(config).status}
+              </span>
+              ${config.enableSeverityFiltering ? `<span style="margin-left: 15px; color: #6c757d; font-size: 13px;">${getSeverityFilteringSummary(config).criteria}</span>` : ''}
+            </p>
+          </div>
         </div>
         
         <div class="metric-card">
           <h2>📈 Executive Summary</h2>
-          <div style="display: flex; flex-wrap: wrap; gap: 20px;">
-            <div style="flex: 1; min-width: 200px;">
+          <div style="display: flex; flex-wrap: wrap; gap: 25px; justify-content: space-between;">
+            <div style="flex: 1; min-width: 180px; text-align: center; padding: 10px; border: 1px solid #e9ecef; border-radius: 6px; background-color: #f8f9fa;">
               <div class="metric-large">${weeklySummary.totalIncidents}</div>
-              <div class="metric-label">Total Incidents Opened</div>
+              <div class="metric-label" style="margin-top: 8px; line-height: 1.3;">Total Incidents<br>Opened</div>
             </div>
-            <div style="flex: 1; min-width: 200px;">
+            <div style="flex: 1; min-width: 180px; text-align: center; padding: 10px; border: 1px solid #e9ecef; border-radius: 6px; background-color: #f8f9fa;">
               <div class="metric-large success">${weeklySummary.completionPercentage}%</div>
-              <div class="metric-label">Field Completion Rate</div>
+              <div class="metric-label" style="margin-top: 8px; line-height: 1.3;">Incidents with<br>ALL Fields Complete</div>
             </div>
-            <div style="flex: 1; min-width: 200px;">
+            <div style="flex: 1; min-width: 180px; text-align: center; padding: 10px; border: 1px solid #e9ecef; border-radius: 6px; background-color: #f8f9fa;">
+              <div class="metric-large success">${weeklySummary.essentialFieldCompletionPercentage}%</div>
+              <div class="metric-label" style="margin-top: 8px; line-height: 1.3;">Essential Field<br>Completion Rate</div>
+            </div>
+            <div style="flex: 1; min-width: 180px; text-align: center; padding: 10px; border: 1px solid #e9ecef; border-radius: 6px; background-color: #f8f9fa;">
               <div class="metric-large success">${weeklySummary.completeIncidents}</div>
-              <div class="metric-label">Complete Incidents</div>
+              <div class="metric-label" style="margin-top: 8px; line-height: 1.3;">Complete<br>Incidents</div>
             </div>
-            <div style="flex: 1; min-width: 200px;">
+            <div style="flex: 1; min-width: 180px; text-align: center; padding: 10px; border: 1px solid #e9ecef; border-radius: 6px; background-color: #f8f9fa;">
               <div class="metric-large ${weeklySummary.incompleteIncidents > 0 ? 'danger' : 'success'}">${weeklySummary.incompleteIncidents}</div>
-              <div class="metric-label">Incomplete Incidents</div>
+              <div class="metric-label" style="margin-top: 8px; line-height: 1.3;">Incomplete<br>Incidents</div>
             </div>
           </div>
         </div>
@@ -2291,6 +2389,120 @@ function buildWeeklySummaryEmailContent(weeklySummary, config) {
               ${severityRows}
             </tbody>
           </table>
+        </div>
+        
+        <div class="metric-card">
+          <h2>📊 Essential Field Analysis</h2>
+          <div style="margin-bottom: 20px;">
+            <h3 style="color: #495057; font-size: 16px; margin-bottom: 15px;">📋 Field Completion Breakdown</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 30%;">Field Name</th>
+                  <th style="width: 15%; text-align: center;">Completion Rate</th>
+                  <th style="width: 15%; text-align: center;">Complete</th>
+                  <th style="width: 15%; text-align: center;">Missing</th>
+                  <th style="width: 25%; text-align: center;">Most Problematic Unit</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${Object.entries(weeklySummary.fieldAnalysis || {}).map(([fieldName, fieldData]) => {
+                  // Find the business unit with the lowest completion rate for this field
+                  let worstUnit = '';
+                  let worstRate = 100;
+                  Object.entries(fieldData.businessUnitBreakdown).forEach(([unit, unitData]) => {
+                    if (unitData.total > 0 && parseFloat(unitData.completionRate) < worstRate) {
+                      worstRate = parseFloat(unitData.completionRate);
+                      worstUnit = `${unit} (${unitData.completionRate}%)`;
+                    }
+                  });
+                  
+                  const completionRate = parseFloat(fieldData.completionRate);
+                  const rateColor = completionRate >= 90 ? '#28a745' : 
+                                   completionRate >= 70 ? '#ffc107' : '#dc3545';
+                  
+                  return `
+                    <tr>
+                      <td style="padding: 8px; border: 1px solid #ddd; font-weight: 500;">
+                        ${fieldName}
+                      </td>
+                      <td style="padding: 8px; border: 1px solid #ddd; text-align: center; font-weight: bold; color: ${rateColor};">
+                        ${fieldData.completionRate}%
+                      </td>
+                      <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: #28a745;">
+                        ${fieldData.complete}
+                      </td>
+                      <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: #dc3545;">
+                        ${fieldData.missing}
+                      </td>
+                      <td style="padding: 8px; border: 1px solid #ddd; text-align: center; font-size: 12px; color: #6c757d;">
+                        ${worstUnit || 'All units equal'}
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+          
+          <div>
+            <h3 style="color: #495057; font-size: 16px; margin-bottom: 15px;">🏢 Business Unit Field Performance</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 20%;">Business Unit</th>
+                  <th style="width: 16%; text-align: center;">Overall Field Rate</th>
+                  <th style="width: 16%; text-align: center;">Affected Markets</th>
+                  <th style="width: 16%; text-align: center;">Causal Type</th>
+                  <th style="width: 16%; text-align: center;">Stabilization Type</th>
+                  <th style="width: 16%; text-align: center;">Impact Start Date</th>
+                  <th style="width: 16%; text-align: center;">Transcript URL</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${['Square', 'Cash', 'Afterpay'].map(unit => {
+                  const unitColor = unit === 'Square' ? '#1f77b4' : 
+                                   unit === 'Cash' ? '#ff7f0e' : '#2ca02c';
+                  
+                  // Calculate overall field completion rate for this business unit
+                  let totalFields = 0;
+                  let completedFields = 0;
+                  Object.entries(weeklySummary.fieldAnalysis || {}).forEach(([fieldName, fieldData]) => {
+                    const unitData = fieldData.businessUnitBreakdown[unit];
+                    if (unitData && unitData.total > 0) {
+                      totalFields += unitData.total;
+                      completedFields += unitData.complete;
+                    }
+                  });
+                  const overallRate = totalFields > 0 ? ((completedFields / totalFields) * 100).toFixed(1) + '%' : 'N/A';
+                  const overallRateColor = totalFields > 0 ? 
+                    (parseFloat(overallRate) >= 90 ? '#28a745' : 
+                     parseFloat(overallRate) >= 70 ? '#ffc107' : '#dc3545') : '#6c757d';
+                  
+                  return `
+                    <tr>
+                      <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; color: ${unitColor};">
+                        ${unit}
+                      </td>
+                      <td style="padding: 8px; border: 1px solid #ddd; text-align: center; font-weight: bold; color: ${overallRateColor};">
+                        ${overallRate}
+                      </td>
+                      ${Object.entries(weeklySummary.fieldAnalysis || {}).map(([fieldName, fieldData]) => {
+                        const unitData = fieldData.businessUnitBreakdown[unit];
+                        const rate = unitData && unitData.total > 0 ? parseFloat(unitData.completionRate) : 0;
+                        const rateColor = rate >= 90 ? '#28a745' : rate >= 70 ? '#ffc107' : '#dc3545';
+                        return `
+                          <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: ${rateColor}; font-size: 13px;">
+                            ${unitData && unitData.total > 0 ? unitData.completionRate + '%' : 'N/A'}
+                          </td>
+                        `;
+                      }).join('')}
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
         </div>
         
         ${weeklySummary.topMissingFields.length > 0 ? `
