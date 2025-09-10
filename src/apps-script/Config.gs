@@ -2822,6 +2822,110 @@ function logExecutionWithDateRange(totalIncidents, incidentsWithMissingFields, c
 }
 
 /**
+ * Setup severity filtering in Config sheet for weekly reports
+ */
+function setupSeverityFilteringInConfig() {
+  console.log('🔧 Setting up severity filtering in Config sheet...');
+  
+  try {
+    let configSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Config');
+    
+    if (!configSheet) {
+      // Create Config sheet if it doesn't exist
+      const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+      configSheet = spreadsheet.insertSheet('Config');
+      
+      // Add headers
+      configSheet.getRange(1, 1).setValue('Parameter');
+      configSheet.getRange(1, 2).setValue('Value');
+      
+      // Format headers
+      const headerRange = configSheet.getRange(1, 1, 1, 2);
+      headerRange.setBackground('#4285f4')
+                 .setFontColor('#ffffff')
+                 .setFontWeight('bold')
+                 .setHorizontalAlignment('center');
+      
+      console.log('✅ Created Config sheet with headers');
+    }
+    
+    const data = configSheet.getDataRange().getValues();
+    
+    // Parameters to set up for severity filtering
+    const severityParams = {
+      'enableSeverityFiltering': true,
+      'incidentioSeverities': 'SEV0,SEV1,SEV2,SEV3',  // Exclude SEV4 as example
+      'includeInternalImpact': true,
+      'firehydrantSeverities': 'SEV0,SEV1,SEV2,SEV3'  // Exclude SEV4 as example
+    };
+    
+    // Track which parameters were updated/added
+    const updates = [];
+    
+    Object.entries(severityParams).forEach(([param, value]) => {
+      let paramRowIndex = -1;
+      
+      // Find existing parameter
+      for (let i = 1; i < data.length; i++) {
+        if (data[i][0] === param) {
+          paramRowIndex = i;
+          break;
+        }
+      }
+      
+      if (paramRowIndex === -1) {
+        // Add new parameter
+        const newRow = configSheet.getLastRow() + 1;
+        configSheet.getRange(newRow, 1).setValue(param);
+        configSheet.getRange(newRow, 2).setValue(value);
+        updates.push(`Added ${param}: ${value}`);
+        console.log(`✅ Added ${param}: ${value}`);
+      } else {
+        // Update existing parameter
+        const currentValue = data[paramRowIndex][1];
+        configSheet.getRange(paramRowIndex + 1, 2).setValue(value);
+        updates.push(`Updated ${param}: ${currentValue} → ${value}`);
+        console.log(`✅ Updated ${param}: ${currentValue} → ${value}`);
+      }
+    });
+    
+    // Test the configuration
+    console.log('🧪 Testing the configuration...');
+    const config = getConfiguration();
+    console.log(`   enableSeverityFiltering: ${config.enableSeverityFiltering}`);
+    console.log(`   incidentioSeverities: ${JSON.stringify(config.incidentioSeverities)}`);
+    console.log(`   includeInternalImpact: ${config.includeInternalImpact}`);
+    console.log(`   firehydrantSeverities: ${JSON.stringify(config.firehydrantSeverities)}`);
+    
+    // Show success message
+    const ui = SpreadsheetApp.getUi();
+    ui.alert(
+      '✅ Severity Filtering Configured',
+      `Severity filtering has been set up in your Config sheet!\n\n` +
+      `CHANGES MADE:\n${updates.join('\n')}\n\n` +
+      `CONFIGURATION:\n` +
+      `• Severity filtering: ENABLED\n` +
+      `• incident.io severities: ${config.incidentioSeverities?.join(', ') || 'None'}\n` +
+      `• FireHydrant severities: ${config.firehydrantSeverities?.join(', ') || 'None'}\n` +
+      `• Include Internal Impact: ${config.includeInternalImpact ? 'Yes' : 'No'}\n\n` +
+      `Weekly reports will now filter incidents by these severity levels.\n` +
+      `You can modify the values in the Config sheet to adjust filtering.`,
+      ui.ButtonSet.OK
+    );
+    
+  } catch (error) {
+    console.error('❌ Failed to setup severity filtering:', error.toString());
+    
+    const ui = SpreadsheetApp.getUi();
+    ui.alert(
+      '❌ Setup Failed',
+      `Failed to setup severity filtering:\n\n${error.toString()}`,
+      ui.ButtonSet.OK
+    );
+  }
+}
+
+/**
  * Show about dialog
  */
 function showAboutDialog() {
