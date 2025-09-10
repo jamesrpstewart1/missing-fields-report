@@ -2089,6 +2089,486 @@ function getLookbackPeriodSummary(config) {
 }
 
 /**
+ * Update tracking sheet with date range information
+ */
+function updateTrackingSheetWithDateRange(incidentsWithMissingFields, config) {
+  console.log(`📝 Updating tracking sheet with ${incidentsWithMissingFields.length} incidents (date range mode)...`);
+  
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Tracking');
+    
+    if (!sheet) {
+      console.log('⚠️ Tracking sheet not found, skipping tracking update');
+      return;
+    }
+    
+    const timestamp = new Date().toISOString();
+    const dateRangeInfo = `${config.dateRangeType || 'custom'} (${config.startDate.toLocaleDateString()} - ${config.endDate.toLocaleDateString()})`;
+    
+    // Prepare data for tracking sheet with date range information
+    const trackingData = incidentsWithMissingFields.map(incident => {
+      const dateBucket = calculateDateBucket(incident.created_at);
+      
+      // Create hyperlink for reference (clickable incident link)
+      const referenceLink = incident.reference && incident.url ? 
+        `=HYPERLINK("${incident.url}","${incident.reference}")` : 
+        incident.reference || 'N/A';
+      
+      // Get Slack link or show N/A
+      const slackLink = incident.slackUrl ? 
+        `=HYPERLINK("${incident.slackUrl}","Open Slack")` : 
+        'N/A';
+      
+      // Get severity information
+      const severity = getIncidentSeverity(incident);
+      
+      return [
+        timestamp,
+        referenceLink,  // Now clickable!
+        incident.platform,
+        incident.businessUnit,
+        incident.name || incident.summary || '',
+        incident.missingFields.join(', '),
+        slackLink,  // Changed from incident URL to Slack link
+        new Date(incident.created_at).toLocaleDateString(),
+        getIncidentStatus(incident),  // Real incident status instead of 'Active'
+        severity,  // New Severity column
+        dateBucket,  // New Date Bucket column
+        dateRangeInfo  // New Date Range column
+      ];
+    });
+    
+    // Add headers if sheet is empty
+    if (sheet.getLastRow() === 0) {
+      const headers = [
+        'Timestamp',
+        'Reference',
+        'Platform',
+        'Business Unit',
+        'Summary',
+        'Missing Fields',
+        'Slack Link',  // Changed from URL to Slack Link
+        'Created Date',
+        'Status',
+        'Severity',  // New Severity column
+        'Date Bucket',  // New Date Bucket column
+        'Date Range'  // New Date Range column
+      ];
+      sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+      
+      // Format headers
+      const headerRange = sheet.getRange(1, 1, 1, headers.length);
+      headerRange.setBackground('#4285f4')
+                 .setFontColor('#ffffff')
+                 .setFontWeight('bold')
+                 .setHorizontalAlignment('center');
+    }
+    
+    // Clear existing data (keep headers) before adding new results
+    if (sheet.getLastRow() > 1) {
+      sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).clearContent();
+    }
+    
+    // Add new tracking data
+    if (trackingData.length > 0) {
+      sheet.getRange(2, 1, trackingData.length, trackingData[0].length).setValues(trackingData);
+    }
+    
+    console.log(`✅ Tracking sheet updated with ${trackingData.length} entries (date range: ${dateRangeInfo})`);
+    
+  } catch (error) {
+    console.error('❌ Failed to update tracking sheet with date range:', error.toString());
+  }
+}
+
+/**
+ * Update summary sheet with date range information
+ */
+function updateSummarySheetWithDateRange(incidentsWithMissingFields, totalIncidentsProcessed, config) {
+  console.log(`📊 Updating summary sheet with date range information...`);
+  
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Summary');
+    
+    if (!sheet) {
+      console.log('⚠️ Summary sheet not found, skipping summary update');
+      return;
+    }
+    
+    // Clear existing content
+    sheet.clear();
+    
+    // Analyze incidents by multiple dimensions
+    const analysis = analyzeIncidents(incidentsWithMissingFields);
+    const timestamp = new Date().toLocaleString();
+    
+    // Calculate totals
+    const totalMissing = incidentsWithMissingFields.length;
+    const totalIncidents = totalIncidentsProcessed;
+    const missingPercentage = totalIncidents > 0 ? ((totalMissing / totalIncidents) * 100).toFixed(1) : '0.0';
+    
+    // Get date range information
+    const dateRangeInfo = `${config.dateRangeType || 'custom'} (${config.startDate.toLocaleDateString()} - ${config.endDate.toLocaleDateString()})`;
+    const daysDiff = Math.ceil((config.endDate - config.startDate) / (1000 * 60 * 60 * 24));
+    
+    // Get severity filtering info
+    const severityFilteringEnabled = config.enableSeverityFiltering || false;
+    const severityFilterInfo = getSeverityFilteringSummary(config);
+    
+    // Build the complete enhanced summary layout with date range info
+    const summaryData = [
+      // Row 1: Main Title
+      ['MISSING FIELDS REPORT - CUSTOM DATE RANGE RESULTS', '', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', '', ''],
+      
+      // Row 3-4: Executive Summary Header
+      ['📊 EXECUTIVE SUMMARY', '', '', '', '', `Last Updated: ${timestamp}`, '', ''],
+      ['', '', '', '', '', '', '', ''],
+      
+      // Row 5-10: Executive Summary Data with date range info
+      [`Total Incidents: ${totalIncidents.toLocaleString()}`, '', '', `Missing Fields: ${totalMissing.toLocaleString()} (${missingPercentage}%)`, '', '', '', ''],
+      [`Date Range: ${dateRangeInfo}`, '', '', `Duration: ${daysDiff} days`, '', '', '', ''],
+      [`Critical (90+ days): ${analysis.buckets['90+ days'] ? analysis.buckets['90+ days'].length.toLocaleString() : '0'}`, '', '', `Urgent (0-7 days): ${analysis.buckets['0-7 days'] ? analysis.buckets['0-7 days'].length.toLocaleString() : '0'}`, '', '', '', ''],
+      [`Business Units: Square, Cash, Afterpay`, '', '', `Platforms: incident.io, FireHydrant`, '', '', '', ''],
+      [severityFilterInfo.status, '', '', severityFilterInfo.criteria, '', '', '', ''],
+      ['', '', '', '', '', '', '', ''],
+      
+      // Row 11-12: Business Unit Section Header
+      ['🏢 BUSINESS UNIT BREAKDOWN BY DATE BUCKET', '', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', '', ''],
+      
+      // Row 13: Business Unit Table Headers
+      ['Business Unit', '0-7 days', '7-30 days', '30-90 days', '90+ days', 'Total', '% of Total', ''],
+      
+      // Row 14-17: Business Unit Data (use all buckets for custom ranges)
+      ...buildBusinessUnitRowsForDateRange(analysis),
+      ['', '', '', '', '', '', '', ''],
+      
+      // Row 19-20: Missing Field Section Header  
+      ['📋 MISSING FIELD ANALYSIS BY DATE BUCKET', '', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', '', ''],
+      
+      // Row 21: Missing Field Table Headers
+      ['Missing Field Type', '0-7 days', '7-30 days', '30-90 days', '90+ days', 'Total', '% of Total', ''],
+      
+      // Row 22-27: Missing Field Data (use all buckets for custom ranges)
+      ...buildMissingFieldRowsForDateRange(analysis),
+      ['', '', '', '', '', '', '', ''],
+      
+      // Row 29-30: Platform Section Header
+      ['📈 PLATFORM BREAKDOWN BY DATE BUCKET', '', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', '', ''],
+      
+      // Row 31: Platform Table Headers
+      ['Platform', '0-7 days', '7-30 days', '30-90 days', '90+ days', 'Total', '% of Total', ''],
+      
+      // Row 32-34: Platform Data (use all buckets for custom ranges)
+      ...buildPlatformRowsForDateRange(analysis),
+      ['', '', '', '', '', '', '', ''],
+      
+      // Instructions for drilling down (moved to bottom)
+      ['💡 HOW TO FILTER INCIDENT DATA', '', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', '', ''],
+      ['1. Go to the "Tracking" sheet tab at the bottom', '', '', '', '', '', '', ''],
+      ['2. Use the filter buttons in the header row to filter by:', '', '', '', '', '', '', ''],
+      ['   • Business Unit (Square, Cash, Afterpay)', '', '', '', '', '', '', ''],
+      ['   • Date Bucket (0-7 days, 7-30 days, etc.)', '', '', '', '', '', '', ''],
+      ['   • Platform (incident.io, firehydrant)', '', '', '', '', '', '', ''],
+      ['   • Missing Fields', '', '', '', '', '', '', ''],
+      ['   • Severity', '', '', '', '', '', '', ''],
+      ['   • Date Range (shows which custom range was used)', '', '', '', '', '', '', ''],
+      ['3. Click on Reference links to view incidents directly', '', '', '', '', '', '', ''],
+      ['4. Use Slack links to join incident channels', '', '', '', '', '', '', '']
+    ];
+    
+    // Write all data at once
+    sheet.getRange(1, 1, summaryData.length, 8).setValues(summaryData);
+    
+    // Apply comprehensive formatting
+    formatEnhancedSummarySheet(sheet, summaryData.length);
+    
+    console.log(`✅ Summary sheet updated with date range information: ${dateRangeInfo}`);
+    
+  } catch (error) {
+    console.error('❌ Failed to update summary sheet with date range:', error.toString());
+  }
+}
+
+/**
+ * Build business unit rows for date range (show all buckets)
+ */
+function buildBusinessUnitRowsForDateRange(analysis) {
+  const businessUnits = ['Square', 'Cash', 'Afterpay'];
+  const buckets = ['0-7 days', '7-30 days', '30-90 days', '90+ days'];
+  const rows = [];
+  
+  let grandTotal = 0;
+  businessUnits.forEach(unit => {
+    buckets.forEach(bucket => {
+      grandTotal += analysis.businessUnits[unit][bucket].length;
+    });
+  });
+  
+  businessUnits.forEach(unit => {
+    const row = [unit];
+    let unitTotal = 0;
+    
+    buckets.forEach(bucket => {
+      const count = analysis.businessUnits[unit][bucket].length;
+      row.push(count);
+      unitTotal += count;
+    });
+    
+    row.push(unitTotal); // Total
+    const percentage = grandTotal > 0 ? ((unitTotal / grandTotal) * 100).toFixed(1) : '0.0';
+    row.push(`${percentage}%`); // Percentage
+    row.push(''); // Empty column for spacing
+    
+    rows.push(row);
+  });
+  
+  // Add totals row
+  const totalRow = ['TOTAL'];
+  buckets.forEach(bucket => {
+    const bucketTotal = businessUnits.reduce((sum, unit) => 
+      sum + analysis.businessUnits[unit][bucket].length, 0);
+    totalRow.push(bucketTotal);
+  });
+  totalRow.push(grandTotal);
+  totalRow.push('100%');
+  totalRow.push('');
+  rows.push(totalRow);
+  
+  return rows;
+}
+
+/**
+ * Build missing field rows for date range (show all buckets)
+ */
+function buildMissingFieldRowsForDateRange(analysis) {
+  const fieldTypes = ['Affected Markets', 'Causal Type', 'Stabilization Type', 'Impact Start Date', 'Transcript URL'];
+  const buckets = ['0-7 days', '7-30 days', '30-90 days', '90+ days'];
+  const rows = [];
+  
+  let grandTotal = 0;
+  fieldTypes.forEach(field => {
+    buckets.forEach(bucket => {
+      grandTotal += (analysis.missingFields[field] ? analysis.missingFields[field][bucket] : 0);
+    });
+  });
+  
+  fieldTypes.forEach(field => {
+    const row = [field];
+    let fieldTotal = 0;
+    
+    buckets.forEach(bucket => {
+      const count = analysis.missingFields[field] ? analysis.missingFields[field][bucket] : 0;
+      row.push(count);
+      fieldTotal += count;
+    });
+    
+    row.push(fieldTotal); // Total
+    const percentage = grandTotal > 0 ? ((fieldTotal / grandTotal) * 100).toFixed(1) : '0.0';
+    row.push(`${percentage}%`); // Percentage
+    row.push(''); // Empty column for spacing
+    
+    rows.push(row);
+  });
+  
+  // Add totals row
+  const totalRow = ['TOTAL'];
+  buckets.forEach(bucket => {
+    const bucketTotal = fieldTypes.reduce((sum, field) => 
+      sum + (analysis.missingFields[field] ? analysis.missingFields[field][bucket] : 0), 0);
+    totalRow.push(bucketTotal);
+  });
+  totalRow.push(grandTotal);
+  totalRow.push('100%');
+  totalRow.push('');
+  rows.push(totalRow);
+  
+  return rows;
+}
+
+/**
+ * Build platform rows for date range (show all buckets)
+ */
+function buildPlatformRowsForDateRange(analysis) {
+  const platforms = [
+    { name: 'incident.io', key: 'incident.io' },
+    { name: 'FireHydrant', key: 'firehydrant' }
+  ];
+  const buckets = ['0-7 days', '7-30 days', '30-90 days', '90+ days'];
+  const rows = [];
+  
+  let grandTotal = 0;
+  platforms.forEach(platform => {
+    buckets.forEach(bucket => {
+      grandTotal += analysis.platforms[platform.key][bucket].length;
+    });
+  });
+  
+  platforms.forEach(platform => {
+    const row = [platform.name];
+    let platformTotal = 0;
+    
+    buckets.forEach(bucket => {
+      const count = analysis.platforms[platform.key][bucket].length;
+      row.push(count);
+      platformTotal += count;
+    });
+    
+    row.push(platformTotal); // Total
+    const percentage = grandTotal > 0 ? ((platformTotal / grandTotal) * 100).toFixed(1) : '0.0';
+    row.push(`${percentage}%`); // Percentage
+    row.push(''); // Empty column for spacing
+    
+    rows.push(row);
+  });
+  
+  // Add totals row
+  const totalRow = ['TOTAL'];
+  buckets.forEach(bucket => {
+    const bucketTotal = platforms.reduce((sum, platform) => 
+      sum + analysis.platforms[platform.key][bucket].length, 0);
+    totalRow.push(bucketTotal);
+  });
+  totalRow.push(grandTotal);
+  totalRow.push('100%');
+  totalRow.push('');
+  rows.push(totalRow);
+  
+  return rows;
+}
+
+/**
+ * Send email notification with date range information
+ */
+function sendMissingFieldsNotificationWithDateRange(incidentsWithMissingFields, config) {
+  console.log(`📧 Sending email notification with date range information...`);
+  
+  try {
+    // Get email recipients from config
+    const emailRecipients = config.emailRecipients || ['jamesstewart@squareup.com'];
+    const dateRangeInfo = `${config.dateRangeType || 'custom'} (${config.startDate.toLocaleDateString()} - ${config.endDate.toLocaleDateString()})`;
+    
+    // Build email subject with date range
+    const subject = `Missing Fields Report - Custom Date Range: ${dateRangeInfo}`;
+    
+    // Build email body with date range information
+    let emailBody = `Missing Fields Report - Custom Date Range Results\n\n`;
+    emailBody += `Date Range: ${dateRangeInfo}\n`;
+    emailBody += `Total Incidents Found: ${incidentsWithMissingFields.length}\n\n`;
+    
+    if (incidentsWithMissingFields.length === 0) {
+      emailBody += `✅ No incidents found with missing fields in the specified date range.\n\n`;
+    } else {
+      emailBody += `⚠️ Found ${incidentsWithMissingFields.length} incidents with missing required fields:\n\n`;
+      
+      // Group by business unit for better organization
+      const groupedIncidents = {};
+      incidentsWithMissingFields.forEach(incident => {
+        const unit = incident.businessUnit;
+        if (!groupedIncidents[unit]) {
+          groupedIncidents[unit] = [];
+        }
+        groupedIncidents[unit].push(incident);
+      });
+      
+      // Add incidents by business unit
+      Object.entries(groupedIncidents).forEach(([unit, incidents]) => {
+        emailBody += `${unit} (${incidents.length} incidents):\n`;
+        incidents.forEach(incident => {
+          emailBody += `  • ${incident.reference}: ${incident.missingFields.join(', ')}\n`;
+          if (incident.url) {
+            emailBody += `    Link: ${incident.url}\n`;
+          }
+        });
+        emailBody += '\n';
+      });
+    }
+    
+    emailBody += `\nThis report was generated for the custom date range: ${dateRangeInfo}\n`;
+    emailBody += `Check the Google Sheets for detailed analysis and tracking information.\n`;
+    
+    // Send email to all recipients
+    emailRecipients.forEach(recipient => {
+      MailApp.sendEmail({
+        to: recipient,
+        subject: subject,
+        body: emailBody
+      });
+    });
+    
+    console.log(`✅ Email notification sent to ${emailRecipients.length} recipient(s) for date range: ${dateRangeInfo}`);
+    
+  } catch (error) {
+    console.error('❌ Failed to send email notification with date range:', error.toString());
+  }
+}
+
+/**
+ * Log execution with date range information
+ */
+function logExecutionWithDateRange(totalIncidents, incidentsWithMissingFields, config) {
+  console.log(`📊 Logging execution details with date range information...`);
+  
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Logs');
+    
+    if (!sheet) {
+      console.log('⚠️ Logs sheet not found, skipping execution logging');
+      return;
+    }
+    
+    const timestamp = new Date();
+    const dateRangeInfo = `${config.dateRangeType || 'custom'} (${config.startDate.toLocaleDateString()} - ${config.endDate.toLocaleDateString()})`;
+    
+    const executionData = [
+      timestamp.toISOString(),
+      timestamp.toLocaleDateString(),
+      timestamp.toLocaleTimeString(),
+      totalIncidents,
+      incidentsWithMissingFields,
+      incidentsWithMissingFields > 0 ? 'Email Sent' : 'No Action Required',
+      'Success',
+      dateRangeInfo  // New Date Range column
+    ];
+    
+    // Add headers if sheet is empty or update headers to include date range
+    if (sheet.getLastRow() === 0) {
+      const headers = [
+        'Timestamp',
+        'Date',
+        'Time',
+        'Total Incidents',
+        'Missing Fields Count',
+        'Action Taken',
+        'Status',
+        'Date Range'  // New Date Range column
+      ];
+      sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+      
+      // Format headers
+      const headerRange = sheet.getRange(1, 1, 1, headers.length);
+      headerRange.setBackground('#4285f4')
+                 .setFontColor('#ffffff')
+                 .setFontWeight('bold')
+                 .setHorizontalAlignment('center');
+    }
+    
+    // Add execution log
+    const startRow = sheet.getLastRow() + 1;
+    sheet.getRange(startRow, 1, 1, executionData.length).setValues([executionData]);
+    
+    console.log(`✅ Execution logged successfully with date range: ${dateRangeInfo}`);
+    
+  } catch (error) {
+    console.error('❌ Failed to log execution with date range:', error.toString());
+  }
+}
+
+/**
  * Show about dialog
  */
 function showAboutDialog() {
@@ -2099,7 +2579,8 @@ function showAboutDialog() {
     '• Checks for missing: Affected Markets, Causal Type, Stabilization Type\n' +
     '• Sends daily email notifications\n' +
     '• Tracks incidents until fields are completed\n' +
-    '• Supports Square, Cash, and Afterpay business units\n\n' +
+    '• Supports Square, Cash, and Afterpay business units\n' +
+    '• NEW: Custom date range functionality for ad-hoc reports\n\n' +
     'Use "Check Missing Fields Now" for manual checks or "Setup Daily Automation" for automated daily reports.\n\n' +
     'For complete documentation, check the README sheet!',
     ui.ButtonSet.OK

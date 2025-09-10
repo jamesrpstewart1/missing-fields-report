@@ -712,6 +712,236 @@ function matchesFireHydrantSeverity(incident, allowedSeverities) {
 }
 
 /**
+ * Fetch incidents from incident.io with custom date range (Square/Cash)
+ */
+function fetchIncidentsFromIncidentIOWithDateRange(businessUnit, config) {
+  console.log(`📡 Fetching incidents from incident.io (${businessUnit}) with custom date range...`);
+  
+  const apiConfig = CONFIG.incidentio[businessUnit];
+  if (!apiConfig || !apiConfig.apiKey) {
+    throw new Error(`Missing API configuration for incident.io ${businessUnit}`);
+  }
+  
+  const incidents = [];
+  let hasMore = true;
+  let after = null;
+  let pageCount = 0;
+  const maxPages = 20; // Safety limit
+  
+  // Use custom date range from config
+  const startDate = config.startDate;
+  const endDate = config.endDate;
+  
+  if (!startDate || !endDate) {
+    throw new Error('Custom date range not provided in config');
+  }
+  
+  console.log(`   📅 Using custom date range: ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`);
+  console.log(`   📅 Range type: ${config.dateRangeType || 'custom'}`);
+  
+  // Check if severity filtering is enabled
+  const severityFilteringEnabled = config.enableSeverityFiltering || false;
+  const allowedSeverities = config.incidentioSeverities || ['SEV0', 'SEV1', 'SEV2', 'SEV3', 'SEV4'];
+  const includeInternalImpact = config.includeInternalImpact !== false; // Default to true
+  
+  if (severityFilteringEnabled) {
+    console.log(`   🔍 Severity filtering enabled - Including: ${allowedSeverities.join(', ')}`);
+    console.log(`   🔍 Include internal impact variants: ${includeInternalImpact}`);
+  }
+  
+  const apiStartDateStr = formatDate(startDate);
+  const apiEndDateStr = formatDate(endDate);
+  
+  while (hasMore && pageCount < maxPages) {
+    // Use finalized incident modes from INCIDENT_FILTERING
+    let url = `${apiConfig.baseUrl}/incidents?created_at[date_range]=${apiStartDateStr}~${apiEndDateStr}&page_size=250`;
+    INCIDENT_FILTERING.includeModes.forEach(mode => {
+      url += `&mode[one_of]=${mode}`;
+    });
+    
+    if (after) {
+      url += `&after=${after}`;
+    }
+    
+    console.log(`     📡 Fetching page ${pageCount + 1} for ${businessUnit} (custom range)`);
+    
+    const options = {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${apiConfig.apiKey}`,
+        'Content-Type': 'application/json'
+      }
+    };
+    
+    try {
+      const response = UrlFetchApp.fetch(url, options);
+      
+      if (response.getResponseCode() !== 200) {
+        throw new Error(`${businessUnit} API call failed: ${response.getResponseCode()} - ${response.getContentText()}`);
+      }
+      
+      const data = JSON.parse(response.getContentText());
+      
+      if (!data.incidents || data.incidents.length === 0) {
+        console.log(`     ⏹️ No more incidents found for ${businessUnit} in date range`);
+        break;
+      }
+      
+      // Add platform and business unit info to each incident
+      let enrichedIncidents = data.incidents.map(incident => ({
+        ...incident,
+        platform: 'incident.io',
+        businessUnit: capitalizeBusinessUnit(businessUnit),
+        url: incident.permalink || `https://app.incident.io/incidents/${incident.id}`,
+        slackUrl: getIncidentIOSlackUrl(incident),
+        dateRangeType: config.dateRangeType || 'custom' // Mark as custom range result
+      }));
+      
+      // Apply severity filtering if enabled
+      if (severityFilteringEnabled) {
+        const beforeFilterCount = enrichedIncidents.length;
+        enrichedIncidents = enrichedIncidents.filter(incident => 
+          matchesIncidentIOSeverity(incident, allowedSeverities, includeInternalImpact)
+        );
+        const afterFilterCount = enrichedIncidents.length;
+        console.log(`     🔍 Severity filter: ${beforeFilterCount} → ${afterFilterCount} incidents`);
+      }
+      
+      incidents.push(...enrichedIncidents);
+      pageCount++;
+      
+      // Check for pagination
+      if (data.pagination_meta && data.pagination_meta.after) {
+        after = data.pagination_meta.after;
+        hasMore = true;
+      } else {
+        hasMore = false;
+      }
+      
+      // Rate limit protection
+      if (hasMore) {
+        Utilities.sleep(200);
+      }
+      
+    } catch (error) {
+      console.error(`❌ Error fetching from ${businessUnit} with custom range:`, error.toString());
+      throw error;
+    }
+  }
+  
+  console.log(`     ✅ Fetched ${incidents.length} incidents from ${businessUnit} for custom date range`);
+  return incidents;
+}
+
+/**
+ * Fetch incidents from FireHydrant with custom date range (Afterpay)
+ */
+function fetchIncidentsFromFireHydrantWithDateRange(businessUnit, config) {
+  console.log(`📡 Fetching incidents from FireHydrant (${businessUnit}) with custom date range...`);
+  
+  const apiConfig = CONFIG.firehydrant[businessUnit];
+  if (!apiConfig || !apiConfig.apiKey) {
+    throw new Error(`Missing API configuration for FireHydrant ${businessUnit}`);
+  }
+  
+  const incidents = [];
+  let page = 1;
+  const maxPages = 20; // Safety limit
+  
+  // Use custom date range from config
+  const startDate = config.startDate;
+  const endDate = config.endDate;
+  
+  if (!startDate || !endDate) {
+    throw new Error('Custom date range not provided in config');
+  }
+  
+  console.log(`   📅 Using custom date range: ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`);
+  console.log(`   📅 Range type: ${config.dateRangeType || 'custom'}`);
+  
+  // Check if severity filtering is enabled
+  const severityFilteringEnabled = config.enableSeverityFiltering || false;
+  const allowedSeverities = config.firehydrantSeverities || ['SEV0', 'SEV1', 'SEV2', 'SEV3', 'SEV4'];
+  
+  if (severityFilteringEnabled) {
+    console.log(`   🔍 Severity filtering enabled - Including: ${allowedSeverities.join(', ')}`);
+  }
+  
+  while (page <= maxPages) {
+    const url = `${apiConfig.baseUrl}/incidents?page=${page}&per_page=100`;
+    
+    console.log(`     📡 Fetching page ${page} for ${businessUnit} (custom range)`);
+    
+    const options = {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${apiConfig.apiKey}`,
+        'Content-Type': 'application/json'
+      }
+    };
+    
+    try {
+      const response = UrlFetchApp.fetch(url, options);
+      
+      if (response.getResponseCode() !== 200) {
+        throw new Error(`${businessUnit} API call failed: ${response.getResponseCode()} - ${response.getContentText()}`);
+      }
+      
+      const data = JSON.parse(response.getContentText());
+      
+      if (!data.data || data.data.length === 0) {
+        console.log(`     ⏹️ No more incidents found for ${businessUnit}`);
+        break;
+      }
+      
+      // Filter by custom date range and add platform info
+      let filteredIncidents = data.data
+        .filter(incident => {
+          const createdAt = new Date(incident.created_at);
+          return createdAt >= startDate && createdAt <= endDate;
+        })
+        .map(incident => ({
+          ...incident,
+          platform: 'firehydrant',
+          businessUnit: capitalizeBusinessUnit(businessUnit),
+          reference: getFireHydrantReference(incident),
+          url: incident.incident_url || `https://app.firehydrant.io/incidents/${incident.id}`,
+          slackUrl: getFireHydrantSlackUrl(incident),
+          dateRangeType: config.dateRangeType || 'custom' // Mark as custom range result
+        }));
+      
+      // Apply severity filtering if enabled
+      if (severityFilteringEnabled) {
+        const beforeFilterCount = filteredIncidents.length;
+        filteredIncidents = filteredIncidents.filter(incident => 
+          matchesFireHydrantSeverity(incident, allowedSeverities)
+        );
+        const afterFilterCount = filteredIncidents.length;
+        console.log(`     🔍 Severity filter: ${beforeFilterCount} → ${afterFilterCount} incidents`);
+      }
+      
+      incidents.push(...filteredIncidents);
+      page++;
+      
+      // If we got less than the page size, we're done
+      if (data.data.length < 100) {
+        break;
+      }
+      
+      // Rate limit protection
+      Utilities.sleep(200);
+      
+    } catch (error) {
+      console.error(`❌ Error fetching from ${businessUnit} with custom range:`, error.toString());
+      throw error;
+    }
+  }
+  
+  console.log(`     ✅ Fetched ${incidents.length} incidents from ${businessUnit} for custom date range`);
+  return incidents;
+}
+
+/**
  * Format date as YYYY-MM-DD
  */
 function formatDate(date) {
