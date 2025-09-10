@@ -2448,8 +2448,18 @@ function sendMissingFieldsNotificationWithDateRange(incidentsWithMissingFields, 
   console.log(`📧 Sending email notification with date range information...`);
   
   try {
-    // Get email recipients from config
-    const emailRecipients = config.emailRecipients || ['jamesstewart@squareup.com'];
+    // Get email recipients from config - ensure it's always an array
+    let emailRecipients = config.emailRecipients || ['jamesstewart@squareup.com'];
+    
+    // Fix: Ensure emailRecipients is always an array
+    if (typeof emailRecipients === 'string') {
+      // If it's a single string, convert to array
+      emailRecipients = [emailRecipients];
+    } else if (!Array.isArray(emailRecipients)) {
+      // If it's neither string nor array, use default
+      emailRecipients = ['jamesstewart@squareup.com'];
+    }
+    
     const dateRangeInfo = `${config.dateRangeType || 'custom'} (${config.startDate.toLocaleDateString()} - ${config.endDate.toLocaleDateString()})`;
     
     // Build email subject with date range
