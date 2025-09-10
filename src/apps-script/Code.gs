@@ -94,6 +94,11 @@ function createCustomMenu() {
   const ui = SpreadsheetApp.getUi();
   ui.createMenu('🔍 Missing Fields Report')
     .addItem('🔄 Check Missing Fields Now', 'runMissingFieldsCheck')
+    .addSeparator()
+    .addSubMenu(ui.createMenu('📅 Custom Date Ranges')
+      .addItem('📅 Run with Custom Dates', 'runWithCustomDates')
+      .addItem('📆 Run with Preset Range', 'runWithPresetRange'))
+    .addSeparator()
     .addItem('📧 Send Test Email', 'sendTestEmail')
     .addSeparator()
     .addSubMenu(ui.createMenu('⚙️ Automation')
@@ -974,6 +979,410 @@ function testNewFieldValidation() {
 
 
 
+/**
+ * Run missing fields check with custom date range
+ */
+function runWithCustomDates() {
+  console.log('📅 Running missing fields check with custom dates...');
+  
+  try {
+    // Show date picker dialog
+    const dateRange = showCustomDatePicker();
+    
+    if (!dateRange) {
+      console.log('❌ User canceled date selection');
+      return;
+    }
+    
+    console.log(`📅 Custom date range selected: ${dateRange.startDate.toLocaleDateString()} to ${dateRange.endDate.toLocaleDateString()}`);
+    
+    // Run the check with custom date range
+    runMissingFieldsCheckWithDateRange(dateRange.startDate, dateRange.endDate, 'custom');
+    
+  } catch (error) {
+    console.error('❌ Custom date check failed:', error.toString());
+    
+    const ui = SpreadsheetApp.getUi();
+    ui.alert(
+      '❌ Custom Date Check Failed',
+      `Failed to run check with custom dates:\n\n${error.toString()}`,
+      ui.ButtonSet.OK
+    );
+  }
+}
+
+/**
+ * Run missing fields check with preset date range
+ */
+function runWithPresetRange() {
+  console.log('📆 Running missing fields check with preset range...');
+  
+  try {
+    // Show preset selection dialog
+    const preset = showPresetDateDialog();
+    
+    if (!preset) {
+      console.log('❌ User canceled preset selection');
+      return;
+    }
+    
+    console.log(`📆 Preset range selected: ${preset}`);
+    
+    // Calculate date range from preset
+    const dateRange = getPresetDateRange(preset);
+    
+    console.log(`📅 Preset date range: ${dateRange.start.toLocaleDateString()} to ${dateRange.end.toLocaleDateString()}`);
+    
+    // Run the check with preset date range
+    runMissingFieldsCheckWithDateRange(dateRange.start, dateRange.end, preset);
+    
+  } catch (error) {
+    console.error('❌ Preset date check failed:', error.toString());
+    
+    const ui = SpreadsheetApp.getUi();
+    ui.alert(
+      '❌ Preset Date Check Failed',
+      `Failed to run check with preset range:\n\n${error.toString()}`,
+      ui.ButtonSet.OK
+    );
+  }
+}
+
+/**
+ * Show custom date picker dialog
+ */
+function showCustomDatePicker() {
+  const ui = SpreadsheetApp.getUi();
+  
+  // Get start date
+  const startDateResponse = ui.prompt(
+    '📅 Custom Date Range - Start Date',
+    'Enter the start date (YYYY-MM-DD format):\n\nExample: 2024-01-01',
+    ui.ButtonSet.OK_CANCEL
+  );
+  
+  if (startDateResponse.getSelectedButton() !== ui.Button.OK) {
+    return null;
+  }
+  
+  const startDateStr = startDateResponse.getResponseText().trim();
+  
+  // Validate start date
+  if (!startDateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    ui.alert(
+      '❌ Invalid Date Format',
+      'Please use YYYY-MM-DD format (e.g., 2024-01-01)',
+      ui.ButtonSet.OK
+    );
+    return null;
+  }
+  
+  const startDate = new Date(startDateStr);
+  if (isNaN(startDate.getTime())) {
+    ui.alert(
+      '❌ Invalid Date',
+      'The start date is not valid. Please check the date.',
+      ui.ButtonSet.OK
+    );
+    return null;
+  }
+  
+  // Get end date
+  const endDateResponse = ui.prompt(
+    '📅 Custom Date Range - End Date',
+    `Start Date: ${startDate.toLocaleDateString()}\n\nEnter the end date (YYYY-MM-DD format):\n\nExample: 2024-01-31`,
+    ui.ButtonSet.OK_CANCEL
+  );
+  
+  if (endDateResponse.getSelectedButton() !== ui.Button.OK) {
+    return null;
+  }
+  
+  const endDateStr = endDateResponse.getResponseText().trim();
+  
+  // Validate end date
+  if (!endDateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    ui.alert(
+      '❌ Invalid Date Format',
+      'Please use YYYY-MM-DD format (e.g., 2024-01-31)',
+      ui.ButtonSet.OK
+    );
+    return null;
+  }
+  
+  const endDate = new Date(endDateStr);
+  if (isNaN(endDate.getTime())) {
+    ui.alert(
+      '❌ Invalid Date',
+      'The end date is not valid. Please check the date.',
+      ui.ButtonSet.OK
+    );
+    return null;
+  }
+  
+  // Set end date to end of day
+  endDate.setHours(23, 59, 59, 999);
+  
+  // Validate date range
+  if (startDate >= endDate) {
+    ui.alert(
+      '❌ Invalid Date Range',
+      'Start date must be before end date.',
+      ui.ButtonSet.OK
+    );
+    return null;
+  }
+  
+  const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+  if (daysDiff > 365) {
+    const proceed = ui.alert(
+      '⚠️ Large Date Range',
+      `The selected range spans ${daysDiff} days. This may take longer to process and return a large amount of data.\n\nDo you want to continue?`,
+      ui.ButtonSet.YES_NO
+    );
+    
+    if (proceed !== ui.Button.YES) {
+      return null;
+    }
+  }
+  
+  // Confirm the selection
+  const confirmResponse = ui.alert(
+    '✅ Confirm Date Range',
+    `Start Date: ${startDate.toLocaleDateString()}\nEnd Date: ${endDate.toLocaleDateString()}\nDuration: ${daysDiff} days\n\nProceed with this date range?`,
+    ui.ButtonSet.YES_NO
+  );
+  
+  if (confirmResponse !== ui.Button.YES) {
+    return null;
+  }
+  
+  return {
+    startDate: startDate,
+    endDate: endDate
+  };
+}
+
+/**
+ * Show preset date selection dialog
+ */
+function showPresetDateDialog() {
+  const ui = SpreadsheetApp.getUi();
+  
+  const presetOptions = [
+    'current_month - Current Month',
+    'last_month - Last Month', 
+    'current_quarter - Current Quarter',
+    'last_quarter - Last Quarter',
+    'ytd - Year to Date',
+    'last_30_days - Last 30 Days',
+    'last_90_days - Last 90 Days'
+  ];
+  
+  const response = ui.prompt(
+    '📆 Select Preset Date Range',
+    `Choose a preset date range by entering the number:\n\n` +
+    presetOptions.map((option, index) => `${index + 1}. ${option}`).join('\n') +
+    '\n\nEnter your choice (1-7):',
+    ui.ButtonSet.OK_CANCEL
+  );
+  
+  if (response.getSelectedButton() !== ui.Button.OK) {
+    return null;
+  }
+  
+  const choice = parseInt(response.getResponseText().trim());
+  
+  if (isNaN(choice) || choice < 1 || choice > presetOptions.length) {
+    ui.alert(
+      '❌ Invalid Selection',
+      'Please enter a number between 1 and 7.',
+      ui.ButtonSet.OK
+    );
+    return null;
+  }
+  
+  const presetKeys = [
+    'current_month',
+    'last_month',
+    'current_quarter', 
+    'last_quarter',
+    'ytd',
+    'last_30_days',
+    'last_90_days'
+  ];
+  
+  const selectedPreset = presetKeys[choice - 1];
+  const dateRange = getPresetDateRange(selectedPreset);
+  
+  // Show confirmation
+  const confirmResponse = ui.alert(
+    '✅ Confirm Preset Range',
+    `Selected: ${presetOptions[choice - 1]}\n\nStart Date: ${dateRange.start.toLocaleDateString()}\nEnd Date: ${dateRange.end.toLocaleDateString()}\n\nProceed with this date range?`,
+    ui.ButtonSet.YES_NO
+  );
+  
+  if (confirmResponse !== ui.Button.YES) {
+    return null;
+  }
+  
+  return selectedPreset;
+}
+
+/**
+ * Get preset date ranges
+ */
+function getPresetDateRange(preset) {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth();
+  
+  switch (preset) {
+    case 'current_month':
+      return {
+        start: new Date(currentYear, currentMonth, 1),
+        end: new Date(currentYear, currentMonth + 1, 0, 23, 59, 59)
+      };
+      
+    case 'last_month':
+      return {
+        start: new Date(currentYear, currentMonth - 1, 1),
+        end: new Date(currentYear, currentMonth, 0, 23, 59, 59)
+      };
+      
+    case 'current_quarter':
+      const quarterStart = Math.floor(currentMonth / 3) * 3;
+      return {
+        start: new Date(currentYear, quarterStart, 1),
+        end: new Date(currentYear, quarterStart + 3, 0, 23, 59, 59)
+      };
+      
+    case 'last_quarter':
+      const lastQuarterStart = Math.floor(currentMonth / 3) * 3 - 3;
+      const lastQuarterYear = lastQuarterStart < 0 ? currentYear - 1 : currentYear;
+      const adjustedQuarterStart = lastQuarterStart < 0 ? 9 : lastQuarterStart;
+      return {
+        start: new Date(lastQuarterYear, adjustedQuarterStart, 1),
+        end: new Date(lastQuarterYear, adjustedQuarterStart + 3, 0, 23, 59, 59)
+      };
+      
+    case 'ytd':
+      return {
+        start: new Date(currentYear, 0, 1),
+        end: now
+      };
+      
+    case 'last_30_days':
+      return {
+        start: new Date(Date.now() - (30 * 24 * 60 * 60 * 1000)),
+        end: now
+      };
+      
+    case 'last_90_days':
+      return {
+        start: new Date(Date.now() - (90 * 24 * 60 * 60 * 1000)),
+        end: now
+      };
+      
+    default:
+      // Fallback to last 30 days
+      return {
+        start: new Date(Date.now() - (30 * 24 * 60 * 60 * 1000)),
+        end: now
+      };
+  }
+}
+
+/**
+ * Run missing fields check with specific date range
+ */
+function runMissingFieldsCheckWithDateRange(startDate, endDate, rangeType) {
+  console.log(`🚀 Starting missing fields check with date range: ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`);
+  
+  try {
+    // Get base configuration
+    const config = getConfiguration();
+    
+    // Override with custom date range
+    config.customDateRange = true;
+    config.dateRangeType = rangeType;
+    config.startDate = startDate;
+    config.endDate = endDate;
+    
+    console.log(`📅 Date range mode: ${rangeType}`);
+    console.log(`📅 Start: ${startDate.toISOString()}`);
+    console.log(`📅 End: ${endDate.toISOString()}`);
+    
+    // Fetch incidents from all platforms with date filtering
+    const allIncidents = [];
+    
+    // incident.io - Square and Cash
+    const squareIncidents = fetchIncidentsFromIncidentIOWithDateRange('square', config);
+    const cashIncidents = fetchIncidentsFromIncidentIOWithDateRange('cash', config);
+    
+    // FireHydrant - Afterpay
+    const afterpayIncidents = fetchIncidentsFromFireHydrantWithDateRange('afterpay', config);
+    
+    allIncidents.push(...squareIncidents, ...cashIncidents, ...afterpayIncidents);
+    
+    console.log(`📊 Total incidents fetched for date range: ${allIncidents.length}`);
+    
+    // Validate required fields
+    const incidentsWithMissingFields = validateRequiredFields(allIncidents);
+    
+    console.log(`⚠️ Incidents with missing fields in date range: ${incidentsWithMissingFields.length}`);
+    
+    // Update sheets with date range information
+    if (incidentsWithMissingFields.length > 0) {
+      // Update tracking sheet with date range info
+      updateTrackingSheetWithDateRange(incidentsWithMissingFields, config);
+      
+      // Update summary sheet with date range info
+      updateSummarySheetWithDateRange(incidentsWithMissingFields, allIncidents.length, config);
+      
+      // Send email notification with date range info
+      sendMissingFieldsNotificationWithDateRange(incidentsWithMissingFields, config);
+    } else {
+      // Update summary sheet even when no incidents (to show zeros)
+      updateSummarySheetWithDateRange([], allIncidents.length, config);
+    }
+    
+    // Log execution with date range
+    logExecutionWithDateRange(allIncidents.length, incidentsWithMissingFields.length, config);
+    
+    // Show completion message
+    const ui = SpreadsheetApp.getUi();
+    const rangeDescription = rangeType === 'custom' ? 
+      `${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}` :
+      `${rangeType.replace('_', ' ')} (${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()})`;
+    
+    ui.alert(
+      '✅ Date Range Check Complete',
+      `Missing fields check completed for ${rangeDescription}!\n\n` +
+      `• Total incidents found: ${allIncidents.length}\n` +
+      `• Incidents with missing fields: ${incidentsWithMissingFields.length}\n` +
+      `• Percentage with missing fields: ${allIncidents.length > 0 ? ((incidentsWithMissingFields.length / allIncidents.length) * 100).toFixed(1) : 0}%\n\n` +
+      `Check the Summary and Tracking sheets for detailed results.`,
+      ui.ButtonSet.OK
+    );
+    
+    console.log('✅ Date range missing fields check completed successfully!');
+    
+  } catch (error) {
+    console.error('❌ Date range missing fields check failed:', error.toString());
+    console.error('Stack trace:', error.stack);
+    
+    const ui = SpreadsheetApp.getUi();
+    ui.alert(
+      '❌ Date Range Check Failed',
+      `Failed to run missing fields check with date range:\n\n${error.toString()}`,
+      ui.ButtonSet.OK
+    );
+    
+    throw error;
+  }
+}
+
 // TODO: Implement remaining functions
 // - getConfiguration()
 // - fetchIncidentsFromIncidentIO()
@@ -987,3 +1396,11 @@ function testNewFieldValidation() {
 // - showAutomationStatus()
 // - testAllApiConnections()
 // - showAboutDialog()
+
+// TODO: Implement new date range functions
+// - fetchIncidentsFromIncidentIOWithDateRange()
+// - fetchIncidentsFromFireHydrantWithDateRange()
+// - updateTrackingSheetWithDateRange()
+// - updateSummarySheetWithDateRange()
+// - sendMissingFieldsNotificationWithDateRange()
+// - logExecutionWithDateRange()
