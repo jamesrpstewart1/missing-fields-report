@@ -1506,7 +1506,17 @@ function generateWeeklySummary(allIncidents, incidentsWithMissingFields, inciden
   // Count by business unit and severity
   allIncidents.forEach(incident => {
     const businessUnit = incident.businessUnit;
-    const severity = incident.severity || incident.incident_severity?.name || 'Unknown';
+    // Extract severity properly - handle both string and object formats
+    let severity = 'Unknown';
+    if (incident.severity) {
+      if (typeof incident.severity === 'string') {
+        severity = incident.severity;
+      } else if (incident.severity.name) {
+        severity = incident.severity.name;
+      }
+    } else if (incident.incident_severity?.name) {
+      severity = incident.incident_severity.name;
+    }
     
     // Business unit counting
     if (businessUnitBreakdown[businessUnit]) {
@@ -1970,7 +1980,18 @@ function buildWeeklySummaryEmailContent(weeklySummary, config) {
       `;
       
       unitIncidents.forEach(incident => {
-        const severity = incident.severity || incident.incident_severity?.name || 'Unknown';
+        // Extract severity properly - handle both string and object formats
+        let severity = 'Unknown';
+        if (incident.severity) {
+          if (typeof incident.severity === 'string') {
+            severity = incident.severity;
+          } else if (incident.severity.name) {
+            severity = incident.severity.name;
+          }
+        } else if (incident.incident_severity?.name) {
+          severity = incident.incident_severity.name;
+        }
+        
         const status = incident.status || incident.incident_status?.name || 'Unknown';
         const title = incident.name || incident.summary || 'No title available';
         const incidentUrl = incident.url || '#';
