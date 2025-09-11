@@ -95,8 +95,17 @@ function onOpen() {
  */
 function createCustomMenu() {
   const ui = SpreadsheetApp.getUi();
-  ui.createMenu('🔍 Missing Fields Report')
-    .addItem('🔄 Check Missing Fields Now', 'runMissingFieldsCheck')
+  ui.createMenu('📊 Incident Reports')
+    .addSubMenu(ui.createMenu('⚠️ Missing Field Report')
+      .addItem('🔍 Check Missing Fields Now', 'runMissingFieldsCheck')
+      .addSeparator()
+      .addSubMenu(ui.createMenu('📅 Custom Date Ranges')
+        .addItem('📅 Run with Custom Dates', 'runWithCustomDates')
+        .addItem('📆 Run with Preset Range', 'runWithPresetRange'))
+      .addSeparator()
+      .addItem('🔧 Setup Daily Automation', 'setupDailyAutomation')
+      .addItem('🛑 Cancel Daily Automation', 'cancelDailyAutomation')
+      .addItem('📊 Show Daily Status', 'showAutomationStatus'))
     .addSeparator()
     .addSubMenu(ui.createMenu('📊 Weekly Summary Report')
       .addItem('📊 Generate Weekly Summary Now', 'runWeeklySummaryReport')
@@ -105,28 +114,14 @@ function createCustomMenu() {
       .addItem('🛑 Cancel Weekly Automation', 'cancelWeeklyAutomation')
       .addItem('📊 Show Weekly Status', 'showWeeklyAutomationStatus'))
     .addSeparator()
-    .addSubMenu(ui.createMenu('📅 Custom Date Ranges')
-      .addItem('📅 Run with Custom Dates', 'runWithCustomDates')
-      .addItem('📆 Run with Preset Range', 'runWithPresetRange'))
-    .addSeparator()
-    .addItem('📧 Send Test Email', 'sendTestEmail')
-    .addSeparator()
-    .addSubMenu(ui.createMenu('⚙️ Automation')
-      .addItem('🔧 Setup Daily Automation', 'setupDailyAutomation')
-      .addItem('🛑 Cancel Daily Automation', 'cancelDailyAutomation')
-      .addSeparator()
-      .addItem('📊 Show Automation Status', 'showAutomationStatus'))
-    .addSeparator()
-    .addSubMenu(ui.createMenu('🔬 Testing & Development')
-      .addItem('🔗 Test API Connections', 'testAllApiConnections'))
-    .addSeparator()
-    .addSubMenu(ui.createMenu('📚 Documentation')
-      .addItem('📚 Update README Sheet', 'updateREADMESheet'))
+    .addSubMenu(ui.createMenu('🧪 Testing')
+      .addItem('🔗 Test API Connections', 'testAllApiConnections')
+      .addItem('📧 Send Test Email', 'sendTestEmail'))
     .addSeparator()
     .addItem('ℹ️ About This Report', 'showAboutDialog')
     .addToUi();
   
-  console.log('✅ Custom menu with weekly summary created successfully!');
+  console.log('✅ Custom menu created successfully!');
 }
 
 /**
