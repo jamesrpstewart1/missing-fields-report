@@ -120,6 +120,9 @@ function createCustomMenu() {
     .addSubMenu(ui.createMenu('🔬 Testing & Development')
       .addItem('🔗 Test API Connections', 'testAllApiConnections'))
     .addSeparator()
+    .addSubMenu(ui.createMenu('📚 Documentation')
+      .addItem('📚 Update README Sheet', 'updateREADMESheet'))
+    .addSeparator()
     .addItem('ℹ️ About This Report', 'showAboutDialog')
     .addToUi();
   
@@ -2062,7 +2065,14 @@ function sendWeeklySummaryEmail(weeklySummary, config) {
     const emailContent = buildWeeklySummaryEmailContent(weeklySummary, config);
     
     // Get email recipients from config
-    const recipients = config.emailRecipients || 'your-email@example.com';
+    let recipients = config.emailRecipients || 'your-email@example.com';
+    
+    // Handle array of email addresses
+    if (Array.isArray(recipients)) {
+      recipients = recipients.join(',');
+    }
+    
+    console.log(`📧 Sending to recipients: ${recipients}`);
     
     // Send email
     MailApp.sendEmail({
@@ -2549,6 +2559,234 @@ function buildWeeklySummaryEmailContent(weeklySummary, config) {
   `;
   
   return { html };
+}
+
+/**
+ * Update README sheet with current system documentation
+ */
+function updateREADMESheet() {
+  console.log('📚 Updating README sheet...');
+  
+  try {
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    let readmeSheet = spreadsheet.getSheetByName('README');
+    
+    if (!readmeSheet) {
+      readmeSheet = spreadsheet.insertSheet('README');
+      console.log('📄 Created new README sheet');
+    }
+    
+    // Clear existing content
+    readmeSheet.clear();
+    
+    // README content
+    const readmeContent = [
+      ['📚 MISSING FIELDS REPORT - SYSTEM DOCUMENTATION'],
+      [''],
+      ['🎯 SYSTEM OVERVIEW'],
+      ['This automated system monitors incidents across incident.io and FireHydrant platforms'],
+      ['to identify missing required fields and send daily/weekly email notifications.'],
+      [''],
+      ['⚙️ HOW IT WORKS'],
+      ['1. Daily at 9:00 AM, the system automatically fetches incidents from all platforms'],
+      ['2. Filters incidents based on specific criteria (status, type, mode)'],
+      ['3. Validates required fields for each business unit'],
+      ['4. Sends email notifications for incidents with missing fields'],
+      ['5. Updates tracking sheets with current data'],
+      ['6. 🆕 Weekly summary reports with comprehensive field analysis'],
+      [''],
+      ['🏢 BUSINESS UNIT & PLATFORM MAPPING'],
+      ['Business Unit | Platform | API Source | Required Fields'],
+      ['Square | incident.io | api.incident.io/v2 | Affected Markets, Causal Type, Stabilization Type, Impact Start Date, Transcript URL'],
+      ['Cash | incident.io | api.incident.io/v2 | Affected Markets, Causal Type, Stabilization Type, Impact Start Date, Transcript URL'],
+      ['Afterpay | FireHydrant | api.firehydrant.io/v1 | Affected Markets, Causal Type, Stabilization Type, Impact Start Date, Transcript URL'],
+      [''],
+      ['🔍 FILTERING CRITERIA'],
+      [''],
+      ['DAILY REPORTS - INCIDENT.IO FILTERING (Square & Cash):'],
+      ['✅ INCLUDED Statuses: Stabilized, Postmortem Prep, Postmortem Meeting Prep, Closed'],
+      ['✅ INCLUDED Modes: standard, retrospective'],
+      ['❌ EXCLUDED Types: [TEST], [Preemptive SEV]'],
+      [''],
+      ['DAILY REPORTS - FIREHYDRANT FILTERING (Afterpay):'],
+      ['✅ INCLUDED Statuses: Stabilized, Remediation, Resolved, Retrospective Started, Retrospective Completed, Closed'],
+      ['✅ INCLUDED Modes: standard, retrospective'],
+      ['❌ EXCLUDED Types: [TEST], [Preemptive SEV]'],
+      [''],
+      ['🆕 WEEKLY REPORTS - INCIDENT.IO FILTERING (Square & Cash):'],
+      ['❌ EXCLUDED Statuses: Declined, Canceled, Cancelled, Triage, Merged'],
+      ['✅ INCLUDED Modes: standard, retrospective'],
+      ['❌ EXCLUDED Types: [TEST], [Preemptive SEV]'],
+      [''],
+      ['🆕 WEEKLY REPORTS - FIREHYDRANT FILTERING (Afterpay):'],
+      ['❌ EXCLUDED Statuses: Declined, Canceled, Cancelled, Triage, Merged'],
+      ['❌ EXCLUDED Types: [TEST], [Preemptive SEV]'],
+      [''],
+      ['🎯 SEVERITY FILTERING'],
+      [''],
+      ['CONFIGURATION: Set in Config sheet parameters:'],
+      ['• enableSeverityFiltering: true/false (enables/disables filtering)'],
+      ['• incidentioSeverities: Array of severities to include (e.g., SEV0,SEV1,SEV2)'],
+      ['• includeInternalImpact: true/false (includes Internal Impact variants)'],
+      ['• firehydrantSeverities: Array of severities to include (e.g., SEV0,SEV1,SEV2)'],
+      [''],
+      ['BEHAVIOR WHEN ENABLED:'],
+      ['✅ INCLUDED: Only incidents matching specified severity levels'],
+      ['✅ INTERNAL IMPACT: incident.io severities with "Internal Impact" suffix included if enabled'],
+      ['❌ EXCLUDED: All other severity levels filtered out'],
+      [''],
+      ['BEHAVIOR WHEN DISABLED:'],
+      ['✅ ALL SEVERITIES: No severity filtering applied (default behavior)'],
+      [''],
+      ['📅 DATE BUCKET SYSTEM'],
+      ['The system categorises incidents into age-based buckets for reporting:'],
+      [''],
+      ['Bucket | Age Range | Email Treatment | Purpose'],
+      ['0-7 days | Last 7 days | Full details shown | Immediate action required'],
+      ['7-30 days | 7-30 days old | Count summary only | Recent but not urgent'],
+      ['30-90 days | 30-90 days old | Count summary only | Older incidents'],
+      ['90+ days | 90+ days old | Count summary only | Historical tracking'],
+      [''],
+      ['🆕 WEEKLY SUMMARY FEATURES'],
+      [''],
+      ['📊 EXECUTIVE SUMMARY METRICS:'],
+      ['• Total Incidents Opened (for the week)'],
+      ['• Incidents with ALL Fields Complete (binary completion rate)'],
+      ['• Essential Field Completion Rate (granular field-level completion)'],
+      ['• Complete Incidents (count)'],
+      ['• Incomplete Incidents (count)'],
+      [''],
+      ['📊 ESSENTIAL FIELD ANALYSIS:'],
+      ['• Field Completion Breakdown: Shows completion rate for each essential field'],
+      ['• Business Unit Field Performance: Matrix view of field completion by team'],
+      ['• Color-coded performance indicators (Green 90%+, Yellow 70-89%, Red <70%)'],
+      ['• "Most Problematic Unit" identification for each field'],
+      ['• N/A handling for business units with no incidents'],
+      [''],
+      ['🏢 BUSINESS UNIT BREAKDOWN:'],
+      ['• Total incidents per business unit'],
+      ['• Incidents with complete vs missing fields'],
+      ['• Completion rates by business unit'],
+      [''],
+      ['🚨 SEVERITY BREAKDOWN:'],
+      ['• Incident distribution by severity level'],
+      ['• Field completion rates by severity'],
+      ['• Color-coded severity indicators'],
+      [''],
+      ['📋 ALL INCIDENTS OPENED THIS WEEK:'],
+      ['• Grouped by business unit'],
+      ['• Clickable incident references'],
+      ['• Shows specific missing fields for each incident'],
+      ['• Status and severity information'],
+      [''],
+      ['🔧 MANUAL ACTIONS'],
+      [''],
+      ['DAILY OPERATIONS:'],
+      ['🔄 Check Missing Fields Now: Run immediate check and update all sheets'],
+      ['📧 Send Test Email: Send test notification to verify email delivery'],
+      ['🔧 Setup Daily Automation: Configure daily 9 AM automated checks'],
+      ['🛑 Cancel Daily Automation: Disable automated daily checks'],
+      ['📊 Show Automation Status: View current automation trigger status'],
+      ['🔗 Test API Connections: Verify connectivity to all platforms'],
+      [''],
+      ['🆕 WEEKLY OPERATIONS:'],
+      ['📊 Generate Weekly Summary Now: Run immediate weekly report'],
+      ['🔧 Setup Weekly Automation: Configure weekly Monday 9 AM reports'],
+      ['🛑 Cancel Weekly Automation: Disable automated weekly reports'],
+      ['📊 Show Weekly Status: View current weekly automation status'],
+      [''],
+      ['📅 CUSTOM DATE RANGES:'],
+      ['📅 Run with Custom Dates: Specify exact date range for analysis'],
+      ['📆 Run with Preset Range: Use predefined date ranges (last 30 days, current month, etc.)'],
+      [''],
+      ['📋 SYSTEM INFORMATION'],
+      [''],
+      ['Version: v2.5.0'],
+      ['Last Updated: September 10, 2025'],
+      ['Platforms: incident.io (Square, Cash), FireHydrant (Afterpay)'],
+      ['Daily Email Focus: Last 7 days (detailed), older incidents summarised'],
+      ['Weekly Email Focus: Previous Monday-Sunday with comprehensive analysis'],
+      ['Update Frequency: Daily at 9:00 AM, Weekly on Monday at 9:00 AM'],
+      [''],
+      ['🆕 RECENT ENHANCEMENTS (v2.5.0):'],
+      ['• Added Essential Field Completion Rate metric to Executive Summary'],
+      ['• Implemented comprehensive Essential Field Analysis section'],
+      ['• Enhanced visual formatting with professional metric boxes'],
+      ['• Improved header layout with left-aligned content'],
+      ['• Added N/A handling for business units with no incidents'],
+      ['• Fixed multiple email recipients support'],
+      ['• Enhanced color-coded performance indicators'],
+      ['• Added specific missing fields display in incident lists'],
+      [''],
+      ['📚 DOCUMENTATION NOTES'],
+      [''],
+      ['• This README is automatically updated when system features change'],
+      ['• For technical details, see the Code.gs file in Google Apps Script'],
+      ['• For configuration options, see the Config sheet'],
+      ['• For testing procedures, see the comprehensive test plan document']
+    ];
+    
+    // Write content to sheet
+    const range = readmeSheet.getRange(1, 1, readmeContent.length, 1);
+    range.setValues(readmeContent);
+    
+    // Format the sheet
+    readmeSheet.setColumnWidth(1, 800);
+    
+    // Format headers (rows with emojis at start)
+    for (let i = 0; i < readmeContent.length; i++) {
+      const cell = readmeSheet.getRange(i + 1, 1);
+      const content = readmeContent[i][0];
+      
+      if (content.includes('📚') || content.includes('🎯') || content.includes('⚙️') || 
+          content.includes('🏢') || content.includes('🔍') || content.includes('🎯') ||
+          content.includes('📅') || content.includes('🆕') || content.includes('🔧') ||
+          content.includes('📋')) {
+        cell.setFontWeight('bold');
+        cell.setFontSize(12);
+        cell.setBackground('#e8f4fd');
+      }
+      
+      // Format section headers
+      if (content.includes('EXECUTIVE SUMMARY') || content.includes('ESSENTIAL FIELD') ||
+          content.includes('BUSINESS UNIT BREAKDOWN') || content.includes('SEVERITY BREAKDOWN') ||
+          content.includes('ALL INCIDENTS') || content.includes('DAILY OPERATIONS') ||
+          content.includes('WEEKLY OPERATIONS') || content.includes('CUSTOM DATE RANGES') ||
+          content.includes('SYSTEM INFORMATION') || content.includes('RECENT ENHANCEMENTS')) {
+        cell.setFontWeight('bold');
+        cell.setFontSize(11);
+        cell.setBackground('#f8f9fa');
+      }
+    }
+    
+    console.log(`✅ README sheet updated successfully with ${readmeContent.length} rows`);
+    
+    const ui = SpreadsheetApp.getUi();
+    ui.alert(
+      '📚 README Updated Successfully',
+      `The README sheet has been updated with current system documentation!\n\n` +
+      `✅ Version: v2.5.0\n` +
+      `✅ Updated: September 10, 2025\n` +
+      `✅ Content: ${readmeContent.length} documentation rows\n\n` +
+      `The README now includes:\n` +
+      `• All weekly summary features\n` +
+      `• Enhanced filtering criteria\n` +
+      `• New manual actions\n` +
+      `• Recent enhancements changelog\n\n` +
+      `Check the README sheet to review the complete documentation.`,
+      ui.ButtonSet.OK
+    );
+    
+  } catch (error) {
+    console.error('❌ README update failed:', error.toString());
+    
+    const ui = SpreadsheetApp.getUi();
+    ui.alert(
+      '❌ README Update Failed',
+      `Failed to update README sheet:\n\n${error.toString()}`,
+      ui.ButtonSet.OK
+    );
+  }
 }
 
 // TODO: Implement remaining functions
