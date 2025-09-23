@@ -125,15 +125,39 @@ function getIncidentIOFieldValue(incident, fieldName) {
  * Get Impact Start timestamp from incident.io incident using V2 timestamps endpoint
  */
 function getImpactStartTimestamp(incident) {
+  // Use incident_timestamp_values structure (not incident_timestamps)
+  if (!incident.incident_timestamp_values) {
+    return incident.occurred_at || ''; // Fallback to occurred_at
+  }
+  
+  // Handle case sensitivity differences between Square and Cash APIs
+  let timestampEntry = incident.incident_timestamp_values.find(entry => 
+    entry.incident_timestamp.name === 'Impact Start'
+  );
+  
+  // Try lowercase 's' for Cash API if not found
+  if (!timestampEntry) {
+    timestampEntry = incident.incident_timestamp_values.find(entry => 
+      entry.incident_timestamp.name === 'Impact start'
+    );
+  }
+  
+  return timestampEntry?.value?.value || incident.occurred_at || '';
+}
+
+/**
+ * Debug function to check available timestamp names for an incident
+ */
+function debugIncidentTimestamps(incidentId, businessUnit = 'square') {
   try {
-    const apiConfig = CONFIG.incidentio[incident.businessUnit.toLowerCase()];
+    const apiConfig = CONFIG.incidentio[businessUnit.toLowerCase()];
     if (!apiConfig || !apiConfig.apiKey) {
-      console.log('⚠️ No API config for Impact Start timestamp lookup');
-      return '';
+      console.log('⚠️ No API config for timestamp debug');
+      return {};
     }
     
     // Call the incident timestamps V2 endpoint
-    const timestampsUrl = `${apiConfig.baseUrl}/incident_timestamps?incident_id=${incident.id}`;
+    const timestampsUrl = `${apiConfig.baseUrl}/incident_timestamps?incident_id=${incidentId}`;
     
     const response = UrlFetchApp.fetch(timestampsUrl, {
       method: 'GET',
@@ -145,69 +169,69 @@ function getImpactStartTimestamp(incident) {
     
     if (response.getResponseCode() === 200) {
       const timestampsData = JSON.parse(response.getContentText());
-      
-      if (timestampsData.incident_timestamps) {
-        // Look for the "Impact Start" timestamp
-        const impactStartTimestamp = timestampsData.incident_timestamps.find(
-          timestamp => timestamp.name === 'Impact Start'
-        );
-        
-        if (impactStartTimestamp && impactStartTimestamp.value) {
-          return impactStartTimestamp.value;
-        }
-      }
+      console.log('🔍 Available timestamps for incident', incidentId, ':', JSON.stringify(timestampsData, null, 2));
+      return timestampsData;
+    } else {
+      console.log('❌ Failed to fetch timestamps. Status:', response.getResponseCode());
+      return {};
     }
     
-    return ''; // No Impact Start timestamp found or no value set
-    
   } catch (error) {
-    console.error('❌ Error fetching Impact Start timestamp:', error.toString());
-    return ''; // Return empty on error
+    console.error('❌ Error debugging timestamps:', error.toString());
+    return {};
   }
+}
+
+/**
+ * Test function specifically for INC-6071 debugging
+ */
+function testDebugINC6071() {
+  console.log('🔍 Debugging INC-6071 timestamp fields...');
+  const result = debugIncidentTimestamps('INC-6071', 'square');
+  console.log('📋 Debug result:', JSON.stringify(result, null, 2));
+  return result;
+}
+
+/**
+ * Test function specifically for Cash incident INC-6287 debugging
+ */
+function testDebugCashINC6287() {
+  console.log('🔍 Debugging Cash INC-6287 timestamp fields...');
+  const result = debugIncidentTimestamps('INC-6287', 'cash');
+  console.log('📋 Debug result:', JSON.stringify(result, null, 2));
+  return result;
 }
 
 /**
  * Get Time to Stabilize timestamp from incident.io incident using V2 timestamps endpoint
  */
 function getTimeToStabilizeTimestamp(incident) {
-  try {
-    const apiConfig = CONFIG.incidentio[incident.businessUnit.toLowerCase()];
-    if (!apiConfig || !apiConfig.apiKey) {
-      console.log('⚠️ No API config for Time to Stabilize timestamp lookup');
-      return '';
-    }
-    
-    // Call the incident timestamps V2 endpoint
-    const timestampsUrl = `${apiConfig.baseUrl}/incident_timestamps?incident_id=${incident.id}`;
-    
-    const response = UrlFetchApp.fetch(timestampsUrl, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${apiConfig.apiKey}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    if (response.getResponseCode() === 200) {
-      const timestampsData = JSON.parse(response.getContentText());
-      
-      if (timestampsData.incident_timestamps) {
-        // Look for the "Time to Stabilize" timestamp
-        const timeToStabilizeTimestamp = timestampsData.incident_timestamps.find(
-          timestamp => timestamp.name === 'Time to Stabilize'
-        );
-        
-        if (timeToStabilizeTimestamp && timeToStabilizeTimestamp.value) {
-          return timeToStabilizeTimestamp.value;
-        }
-      }
-    }
-    
-    return ''; // No Time to Stabilize timestamp found or no value set
-    
-  } catch (error) {
-    console.error('❌ Error fetching Time to Stabilize timestamp:', error.toString());
-    return ''; // Return empty on error
+  // Time to Stabilize is in duration_metrics, not timestamps!
+  if (!incident.duration_metrics) {
+    return '';
+  }
+  
+  const durationEntry = incident.duration_metrics.find(entry => 
+    entry.duration_metric.name === 'Time to Stabilize'
+  );
+  
+  if (!durationEntry?.value_seconds) {
+    return '';
+  }
+  
+  // Convert seconds to hours and minutes for better readability
+  const totalSeconds = durationEntry.value_seconds;
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  
+  if (hours > 0 && minutes > 0) {
+    return `${hours}h ${minutes}m`;
+  } else if (hours > 0) {
+    return `${hours}h`;
+  } else if (minutes > 0) {
+    return `${minutes}m`;
+  } else {
+    return `${totalSeconds}s`;
   }
 }
 
