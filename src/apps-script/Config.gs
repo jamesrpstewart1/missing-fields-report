@@ -721,6 +721,8 @@ function formatEnhancedSummarySheet(sheet, totalRows) {
   sheet.getRange('A17:G17').setBackground('#f8f9fa')
                            .setFontWeight('bold')
                            .setFontColor('#000000') // Ensure text is black and readable
+                           .setFontSize(12) // Fix: Set font size to 12 to match other total rows
+                           .setHorizontalAlignment('left') // Fix: Left align the total row like other total rows
                            .setBorder(true, true, true, true, true, true, '#cccccc', SpreadsheetApp.BorderStyle.SOLID);
   
   // Format missing field section header (Row 19) - updated row number
@@ -738,45 +740,79 @@ function formatEnhancedSummarySheet(sheet, totalRows) {
   // Format missing field data rows (Rows 22-27) - updated to include new fields
   sheet.getRange('A22:G27').setBorder(true, true, true, true, true, true, '#cccccc', SpreadsheetApp.BorderStyle.SOLID);
   
-  // Format missing field totals row (Row 27) - updated row number
-  sheet.getRange('A27:G27').setBackground('#f8f9fa')
+  // Format missing field totals row (Row 29) - CORRECTED row number
+  sheet.getRange('A29:G29').setBackground('#f8f9fa')
                            .setFontWeight('bold')
+                           .setFontSize(12) // Fix: Set font size to 12 to match other total rows
                            .setFontColor('#000000'); // Ensure text is black and readable
   
-  // Format platform section header (Row 29) - updated row number
-  sheet.getRange('A29:H29').setBackground('#9c27b0')
-                           .setFontColor('#ffffff')
-                           .setFontWeight('bold')
-                           .setFontSize(12);
+  // Format platform section header (Row 31) - CORRECTED ROW NUMBER - FORCE CORRECT FORMATTING
+  const platformHeaderRange = sheet.getRange('A31:H31');
+  platformHeaderRange.clearFormat(); // CLEAR EXISTING FORMATTING FIRST
+  platformHeaderRange.setBackground('#9c27b0')
+                     .setFontColor('#ffffff')
+                     .setFontWeight('bold')
+                     .setFontSize(12) // EXPLICITLY SET TO 12
+                     .setHorizontalAlignment('left'); // FORCE LEFT ALIGNMENT
   
-  // Format platform table headers (Row 31) - updated row number
-  sheet.getRange('A31:G31').setBackground('#e8f0fe')
+  // Force the font size and alignment again to ensure it sticks - APPLY MULTIPLE TIMES
+  platformHeaderRange.setFontSize(12);
+  platformHeaderRange.setHorizontalAlignment('left');
+  
+  // Apply formatting to the specific cell A31 as well to ensure it overrides any other formatting
+  const platformTitleCell = sheet.getRange('A31');
+  platformTitleCell.setFontSize(12)
+                   .setHorizontalAlignment('left')
+                   .setFontWeight('bold')
+                   .setFontColor('#ffffff')
+                   .setBackground('#9c27b0');
+  
+  // Format platform table headers (Row 33) - CORRECTED row number
+  sheet.getRange('A33:G33').setBackground('#e8f0fe')
                            .setFontWeight('bold')
                            .setHorizontalAlignment('center')
                            .setBorder(true, true, true, true, true, true, '#4285f4', SpreadsheetApp.BorderStyle.SOLID);
   
-  // Format platform data rows (Rows 32-34) - updated row numbers
-  sheet.getRange('A32:G34').setBorder(true, true, true, true, true, true, '#cccccc', SpreadsheetApp.BorderStyle.SOLID);
+  // Format platform data rows (Rows 34-36) - CORRECTED row numbers
+  sheet.getRange('A34:G36').setBorder(true, true, true, true, true, true, '#cccccc', SpreadsheetApp.BorderStyle.SOLID);
   
-  // Format platform totals row (Row 34) - updated row number
-  sheet.getRange('A34:G34').setBackground('#f8f9fa')
+  // CRITICAL FIX: Force correct formatting for individual platform rows (incident.io and FireHydrant)
+  // Clear any existing formatting first, then apply new formatting
+  const incidentioRow = sheet.getRange('A34:G34');
+  incidentioRow.clearFormat(); // Clear existing formatting
+  incidentioRow.setFontWeight('normal')
+               .setFontSize(10) // incident.io row - size 10, not bold
+               .setHorizontalAlignment('left') // Left align
+               .setBorder(true, true, true, true, true, true, '#cccccc', SpreadsheetApp.BorderStyle.SOLID);
+                           
+  const firehydrantRow = sheet.getRange('A35:G35');
+  firehydrantRow.clearFormat(); // Clear existing formatting
+  firehydrantRow.setFontWeight('normal')
+                .setFontSize(10) // FireHydrant row - size 10, not bold  
+                .setHorizontalAlignment('left') // Left align
+                .setBorder(true, true, true, true, true, true, '#cccccc', SpreadsheetApp.BorderStyle.SOLID);
+  
+  // Format platform totals row (Row 36) - CORRECTED row number
+  sheet.getRange('A36:G36').setBackground('#f8f9fa')
                            .setFontWeight('bold')
-                           .setFontColor('#000000'); // Ensure text is black and readable
+                           .setFontColor('#000000') // Ensure text is black and readable
+                           .setFontSize(12) // Fix: Set font size to 12 to match other total rows
+                           .setHorizontalAlignment('left'); // CHANGE: Left align the total row to match other sections
   
-  // Format instructions section header (Row 36) - updated row number
-  sheet.getRange('A36:H36').setBackground('#ffc107')
+  // Format instructions section header (Row 38) - CORRECTED row number
+  sheet.getRange('A38:H38').setBackground('#ffc107')
                            .setFontColor('#000000')
                            .setFontWeight('bold')
                            .setFontSize(12);
   
-  // Format ALL instructions text rows (Rows 38 to end of instructions) - fix background color consistency
-  const instructionStartRow = 38;
+  // Format ALL instructions text rows (Rows 40 to end of instructions) - CORRECTED row number
+  const instructionStartRow = 40;
   const instructionEndRow = totalRows; // Use actual total rows to cover all instruction rows
   sheet.getRange(`A${instructionStartRow}:H${instructionEndRow}`).setBackground('#fffbf0')
                                                                  .setFontStyle('italic');
   
   // Center align all numeric data - updated row ranges
-  sheet.getRange('B13:G34').setHorizontalAlignment('center');
+  sheet.getRange('B13:G36').setHorizontalAlignment('center');
   
   // Remove gridlines from the entire sheet
   sheet.setHiddenGridlines(true);
@@ -2932,6 +2968,223 @@ function setupSeverityFilteringInConfig() {
       `Failed to setup severity filtering:\n\n${error.toString()}`,
       ui.ButtonSet.OK
     );
+  }
+}
+
+/**
+ * Apply formatting fixes to the Summary sheet without regenerating data
+ */
+function applyFormattingFixes() {
+  console.log('🎨 Applying formatting fixes to Summary sheet...');
+  
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Summary');
+    
+    if (!sheet) {
+      console.error('❌ Summary sheet not found');
+      const ui = SpreadsheetApp.getUi();
+      ui.alert('❌ Summary sheet not found', 'Please run "Check Missing Fields Now" first to generate the summary sheet.', ui.ButtonSet.OK);
+      return;
+    }
+    
+    const lastRow = sheet.getLastRow();
+    console.log(`📊 Found Summary sheet with ${lastRow} rows`);
+    
+    if (lastRow === 0) {
+      console.error('❌ Summary sheet is empty');
+      const ui = SpreadsheetApp.getUi();
+      ui.alert('❌ Summary sheet is empty', 'Please run "Check Missing Fields Now" first to generate the summary data.', ui.ButtonSet.OK);
+      return;
+    }
+    
+    // Apply the comprehensive formatting fixes
+    console.log('🎨 Applying comprehensive formatting...');
+    formatEnhancedSummarySheet(sheet, lastRow);
+    
+    // Apply additional targeted fixes for persistent issues
+    console.log('🎯 Applying targeted formatting fixes...');
+    applyTargetedFormattingFixes(sheet);
+    
+    console.log('✅ Formatting fixes applied successfully');
+    
+    const ui = SpreadsheetApp.getUi();
+    ui.alert(
+      '✅ Formatting Fixed!',
+      'The visual formatting issues have been corrected:\n\n' +
+      '• Business Unit total row is now left-aligned\n' +
+      '• Platform section title is now size 12\n' +
+      '• Individual platform rows are now properly formatted\n\n' +
+      'Check your Summary sheet to see the fixes!',
+      ui.ButtonSet.OK
+    );
+    
+  } catch (error) {
+    console.error('❌ Failed to apply formatting fixes:', error.toString());
+    
+    const ui = SpreadsheetApp.getUi();
+    ui.alert(
+      '❌ Formatting Failed',
+      `Failed to apply formatting fixes:\n\n${error.toString()}`,
+      ui.ButtonSet.OK
+    );
+  }
+}
+
+/**
+ * Apply targeted formatting fixes for specific persistent issues - STANDALONE VERSION
+ */
+function applyTargetedFormattingFixesStandalone() {
+  console.log('🎯 Applying targeted formatting fixes (standalone)...');
+  
+  try {
+    // Get the Summary sheet directly
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Summary');
+    
+    if (!sheet) {
+      console.error('❌ Summary sheet not found');
+      const ui = SpreadsheetApp.getUi();
+      ui.alert('❌ Summary sheet not found', 'Please run "Check Missing Fields Now" first to generate the summary sheet.', ui.ButtonSet.OK);
+      return;
+    }
+    
+    console.log('✅ Found Summary sheet, applying targeted fixes...');
+    
+    // Call the helper function
+    applyTargetedFormattingFixes(sheet);
+    
+    // Show success message
+    const ui = SpreadsheetApp.getUi();
+    ui.alert(
+      '✅ Targeted Formatting Fixed!',
+      'The specific formatting issues have been corrected:\n\n' +
+      '• Business Unit TOTAL row is now left-aligned\n' +
+      '• Platform rows (incident.io, FireHydrant) are now properly formatted\n' +
+      '• Platform TOTAL row is now left-aligned\n\n' +
+      'Check your Summary sheet to see the fixes!',
+      ui.ButtonSet.OK
+    );
+    
+  } catch (error) {
+    console.error('❌ Failed to apply targeted formatting fixes:', error.toString());
+    
+    const ui = SpreadsheetApp.getUi();
+    ui.alert(
+      '❌ Formatting Failed',
+      `Failed to apply targeted formatting fixes:\n\n${error.toString()}`,
+      ui.ButtonSet.OK
+    );
+  }
+}
+
+/**
+ * Apply targeted formatting fixes for specific persistent issues (helper function)
+ */
+function applyTargetedFormattingFixes(sheet) {
+  console.log('🎯 Applying targeted formatting fixes...');
+  
+  try {
+    // Ensure we have a valid sheet object
+    if (!sheet) {
+      console.error('❌ Sheet parameter is undefined');
+      return;
+    }
+    
+    // Find the Business Unit TOTAL row by looking for "TOTAL" in column A
+    const lastRow = sheet.getLastRow();
+    let businessUnitTotalRow = -1;
+    let platformDataStartRow = -1;
+    let platformTotalRow = -1;
+    
+    for (let row = 1; row <= lastRow; row++) {
+      const cellValue = sheet.getRange(row, 1).getValue().toString();
+      
+      // Find Business Unit TOTAL row (should be around row 17)
+      if (cellValue === 'TOTAL' && businessUnitTotalRow === -1) {
+        businessUnitTotalRow = row;
+        console.log(`   Found Business Unit TOTAL row: ${row}`);
+      }
+      
+      // Find Platform section start (incident.io row)
+      if (cellValue === 'incident.io') {
+        platformDataStartRow = row;
+        console.log(`   Found Platform data start row: ${row}`);
+      }
+      
+      // Find Platform TOTAL row (should be after incident.io and FireHydrant)
+      if (cellValue === 'TOTAL' && platformDataStartRow > 0 && platformTotalRow === -1) {
+        platformTotalRow = row;
+        console.log(`   Found Platform TOTAL row: ${row}`);
+      }
+    }
+    
+    // Fix Business Unit TOTAL row formatting
+    if (businessUnitTotalRow > 0) {
+      console.log(`   Fixing Business Unit TOTAL row formatting (row ${businessUnitTotalRow})`);
+      const businessTotalRange = sheet.getRange(`A${businessUnitTotalRow}:G${businessUnitTotalRow}`);
+      businessTotalRange.clearFormat(); // Clear all existing formatting
+      businessTotalRange.setBackground('#f8f9fa')
+                        .setFontWeight('bold')
+                        .setFontColor('#000000')
+                        .setFontSize(12)
+                        .setHorizontalAlignment('left') // FORCE LEFT ALIGNMENT
+                        .setBorder(true, true, true, true, true, true, '#cccccc', SpreadsheetApp.BorderStyle.SOLID);
+      
+      // Force left alignment on the TOTAL cell specifically
+      sheet.getRange(`A${businessUnitTotalRow}`).setHorizontalAlignment('left');
+    }
+    
+    // Fix Platform data rows formatting (incident.io and FireHydrant)
+    if (platformDataStartRow > 0) {
+      console.log(`   Fixing Platform data rows formatting (starting from row ${platformDataStartRow})`);
+      
+      // Fix incident.io row (should be normal font, size 10, left-aligned)
+      const incidentioRange = sheet.getRange(`A${platformDataStartRow}:G${platformDataStartRow}`);
+      incidentioRange.clearFormat(); // Clear all existing formatting
+      incidentioRange.setFontWeight('normal')
+                    .setFontSize(10)
+                    .setHorizontalAlignment('left')
+                    .setBorder(true, true, true, true, true, true, '#cccccc', SpreadsheetApp.BorderStyle.SOLID);
+      
+      // Fix FireHydrant row (should be normal font, size 10, left-aligned)
+      const firehydrantRange = sheet.getRange(`A${platformDataStartRow + 1}:G${platformDataStartRow + 1}`);
+      firehydrantRange.clearFormat(); // Clear all existing formatting
+      firehydrantRange.setFontWeight('normal')
+                     .setFontSize(10)
+                     .setHorizontalAlignment('left')
+                     .setBorder(true, true, true, true, true, true, '#cccccc', SpreadsheetApp.BorderStyle.SOLID);
+    }
+    
+    // Fix Platform TOTAL row formatting
+    if (platformTotalRow > 0) {
+      console.log(`   Fixing Platform TOTAL row formatting (row ${platformTotalRow})`);
+      const platformTotalRange = sheet.getRange(`A${platformTotalRow}:G${platformTotalRow}`);
+      platformTotalRange.clearFormat(); // Clear all existing formatting
+      platformTotalRange.setBackground('#f8f9fa')
+                        .setFontWeight('bold')
+                        .setFontColor('#000000')
+                        .setFontSize(12)
+                        .setHorizontalAlignment('left') // FORCE LEFT ALIGNMENT
+                        .setBorder(true, true, true, true, true, true, '#cccccc', SpreadsheetApp.BorderStyle.SOLID);
+      
+      // Force left alignment on the TOTAL cell specifically
+      sheet.getRange(`A${platformTotalRow}`).setHorizontalAlignment('left');
+    }
+    
+    // Center align all numeric data columns (B through G) but skip the TOTAL rows
+    console.log('   Applying center alignment to numeric data...');
+    for (let row = 14; row <= lastRow; row++) {
+      const cellValue = sheet.getRange(row, 1).getValue().toString();
+      
+      // Skip TOTAL rows - keep them left aligned
+      if (cellValue !== 'TOTAL') {
+        sheet.getRange(`B${row}:G${row}`).setHorizontalAlignment('center');
+      }
+    }
+    
+    console.log('✅ Targeted formatting fixes applied successfully');
+    
+  } catch (error) {
+    console.error('❌ Failed to apply targeted formatting fixes:', error.toString());
   }
 }
 
