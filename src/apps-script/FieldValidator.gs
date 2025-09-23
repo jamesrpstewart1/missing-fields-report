@@ -45,7 +45,8 @@ function getPlatformRequiredFields(platform) {
       'Affected Markets', 
       'Causal Type', 
       'Stabilization Type',
-      'Impact Start Date',  // New: Impact start timestamp
+      'Impact Start Date',  // Impact start timestamp
+      'Time to Stabilize',  // New: Time to stabilize timestamp
       'Transcript URL'      // New: Google Meet transcript document
     ];
   } else if (platform === 'firehydrant') {
@@ -92,6 +93,12 @@ function getIncidentIOFieldValue(incident, fieldName) {
     // TODO: Need to investigate incident.io custom timestamps structure
     // This will be implemented after deeper research
     return getImpactStartTimestamp(incident);
+  }
+  
+  // Handle Time to Stabilize - check custom timestamps
+  if (fieldName === 'Time to Stabilize') {
+    // Use the new function to get Time to Stabilize timestamp
+    return getTimeToStabilizeTimestamp(incident);
   }
   
   // Map required field names to actual incident.io field names
@@ -155,6 +162,51 @@ function getImpactStartTimestamp(incident) {
     
   } catch (error) {
     console.error('❌ Error fetching Impact Start timestamp:', error.toString());
+    return ''; // Return empty on error
+  }
+}
+
+/**
+ * Get Time to Stabilize timestamp from incident.io incident using V2 timestamps endpoint
+ */
+function getTimeToStabilizeTimestamp(incident) {
+  try {
+    const apiConfig = CONFIG.incidentio[incident.businessUnit.toLowerCase()];
+    if (!apiConfig || !apiConfig.apiKey) {
+      console.log('⚠️ No API config for Time to Stabilize timestamp lookup');
+      return '';
+    }
+    
+    // Call the incident timestamps V2 endpoint
+    const timestampsUrl = `${apiConfig.baseUrl}/incident_timestamps?incident_id=${incident.id}`;
+    
+    const response = UrlFetchApp.fetch(timestampsUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${apiConfig.apiKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (response.getResponseCode() === 200) {
+      const timestampsData = JSON.parse(response.getContentText());
+      
+      if (timestampsData.incident_timestamps) {
+        // Look for the "Time to Stabilize" timestamp
+        const timeToStabilizeTimestamp = timestampsData.incident_timestamps.find(
+          timestamp => timestamp.name === 'Time to Stabilize'
+        );
+        
+        if (timeToStabilizeTimestamp && timeToStabilizeTimestamp.value) {
+          return timeToStabilizeTimestamp.value;
+        }
+      }
+    }
+    
+    return ''; // No Time to Stabilize timestamp found or no value set
+    
+  } catch (error) {
+    console.error('❌ Error fetching Time to Stabilize timestamp:', error.toString());
     return ''; // Return empty on error
   }
 }

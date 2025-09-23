@@ -79,7 +79,8 @@ const REQUIRED_FIELDS = [
   'Affected Markets',
   'Causal Type',
   'Stabilization Type',
-  'Impact Start Date',  // New: Impact start timestamp
+  'Impact Start Date',  // Impact start timestamp
+  'Time to Stabilize',  // New: Time to stabilize timestamp
   'Transcript URL'      // New: Google Meet transcript document
 ];
 
@@ -1674,9 +1675,9 @@ function generateWeeklySummary(allIncidents, incidentsWithMissingFields, inciden
   const incompletionPercentage = totalIncidents > 0 ? 
     ((incompleteIncidents / totalIncidents) * 100).toFixed(1) : '0.0';
   
-  // Calculate Essential Field Completion Rate
-  // This shows the percentage of all essential fields that are completed across all incidents
-  const requiredFields = ['Affected Markets', 'Causal Type', 'Stabilization Type', 'Impact Start Date', 'Transcript URL']; // Your actual required fields
+  // Field-by-field analysis
+  const fieldAnalysis = {};
+  const requiredFields = ['Affected Markets', 'Causal Type', 'Stabilization Type', 'Impact Start Date', 'Transcript URL', 'Time to Stabilize']; // Your actual required fields
   const totalPossibleFields = totalIncidents * requiredFields.length;
   
   let totalCompletedFields = 0;
@@ -2538,8 +2539,10 @@ function buildWeeklySummaryEmailContent(weeklySummary, config) {
           <ul>
             <li><strong>Affected Markets</strong></li>
             <li><strong>Causal Type</strong></li>
+            <li><strong>Causal Type</strong></li>
             <li><strong>Stabilization Type</strong></li>
             <li><strong>Impact Start Date</strong></li>
+            <li><strong>Time to Stabilize</strong></li>
             <li><strong>Transcript URL</strong></li>
           </ul>
         </div>
@@ -2594,7 +2597,7 @@ function updateREADMESheet() {
       ['Business Unit | Platform | API Source | Required Fields'],
       ['Square | incident.io | api.incident.io/v2 | Affected Markets, Causal Type, Stabilization Type, Impact Start Date, Transcript URL'],
       ['Cash | incident.io | api.incident.io/v2 | Affected Markets, Causal Type, Stabilization Type, Impact Start Date, Transcript URL'],
-      ['Afterpay | FireHydrant | api.firehydrant.io/v1 | Affected Markets, Causal Type, Stabilization Type, Impact Start Date, Transcript URL'],
+      ['Afterpay | FireHydrant | api.firehydrant.io/v1 | Market'],
       [''],
       ['🔍 FILTERING CRITERIA'],
       [''],

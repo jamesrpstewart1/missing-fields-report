@@ -350,7 +350,8 @@ function analyzeIncidents(incidents) {
       'Causal Type': { '0-7 days': 0, '7-30 days': 0, '30-90 days': 0, '90+ days': 0 },
       'Stabilization Type': { '0-7 days': 0, '7-30 days': 0, '30-90 days': 0, '90+ days': 0 },
       'Impact Start Date': { '0-7 days': 0, '7-30 days': 0, '30-90 days': 0, '90+ days': 0 },
-      'Transcript URL': { '0-7 days': 0, '7-30 days': 0, '30-90 days': 0, '90+ days': 0 }
+      'Transcript URL': { '0-7 days': 0, '7-30 days': 0, '30-90 days': 0, '90+ days': 0 },
+      'Time to Stabilize': { '0-7 days': 0, '7-30 days': 0, '30-90 days': 0, '90+ days': 0 }
     }
   };
   
@@ -524,7 +525,7 @@ function buildBusinessUnitRows(analysis, config) {
  * Build missing field rows for the summary with smart N/A handling
  */
 function buildMissingFieldRows(analysis, config) {
-  const fieldTypes = ['Affected Markets', 'Causal Type', 'Stabilization Type', 'Impact Start Date', 'Transcript URL'];
+  const fieldTypes = ['Affected Markets', 'Causal Type', 'Stabilization Type', 'Impact Start Date', 'Transcript URL', 'Time to Stabilize'];
   const buckets = ['0-7 days', '7-30 days', '30-90 days', '90+ days'];
   const availableBuckets = getAvailableAgeBuckets(config.maxLookbackDays || 365);
   const rows = [];
@@ -1775,6 +1776,9 @@ function createReadmeSheet() {
       ['Square', 'incident.io', 'api.incident.io/v2', 'Affected Markets, Causal Type, Stabilization Type, Impact Start Date, Transcript URL'],
       ['Cash', 'incident.io', 'api.incident.io/v2', 'Affected Markets, Causal Type, Stabilization Type, Impact Start Date, Transcript URL'],
       ['Afterpay', 'FireHydrant', 'api.firehydrant.io/v1', 'Market'],
+      ['Square', 'incident.io', 'api.incident.io/v2', 'Affected Markets, Causal Type, Stabilization Type, Impact Start Date, Transcript URL, Time to Stabilize'],
+      ['Cash', 'incident.io', 'api.incident.io/v2', 'Affected Markets, Causal Type, Stabilization Type, Impact Start Date, Transcript URL, Time to Stabilize'],
+      ['Afterpay', 'FireHydrant', 'api.firehydrant.io/v1', 'Market'],
       [''],
       ['🔍 FILTERING CRITERIA'],
       [''],
@@ -1851,6 +1855,7 @@ function createReadmeSheet() {
       ['Stabilization Type', 'Stabilisation Type, Stabilization Type, STABILISATION TYPE, STABILIZATION TYPE'],
       ['Impact Start Date', 'Impact Start (via V2 timestamps endpoint)'],
       ['Transcript URL', 'Google Meet Transcript (custom field)'],
+      ['Time to Stabilize', 'Time to Stabilize (via V2 timestamps endpoint)'],
       [''],
       ['FIREHYDRANT FIELD MAPPING:'],
       ['Required Field', 'Possible API Field Names'],
@@ -2346,7 +2351,7 @@ function buildBusinessUnitRowsForDateRange(analysis) {
  * Build missing field rows for date range (show all buckets)
  */
 function buildMissingFieldRowsForDateRange(analysis) {
-  const fieldTypes = ['Affected Markets', 'Causal Type', 'Stabilization Type', 'Impact Start Date', 'Transcript URL'];
+  const fieldTypes = ['Affected Markets', 'Causal Type', 'Stabilization Type', 'Impact Start Date', 'Transcript URL', 'Time to Stabilize'];
   const buckets = ['0-7 days', '7-30 days', '30-90 days', '90+ days'];
   const rows = [];
   
