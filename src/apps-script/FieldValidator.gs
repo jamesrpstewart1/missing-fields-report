@@ -47,6 +47,7 @@ function getPlatformRequiredFields(platform) {
       'Stabilization Type',
       'Impact Start Date',  // Impact start timestamp
       'Time to Stabilize',  // New: Time to stabilize timestamp
+      'Time to Respond',    // New: Time to respond duration
       'Transcript URL'      // New: Google Meet transcript document
     ];
   } else if (platform === 'firehydrant') {
@@ -99,6 +100,11 @@ function getIncidentIOFieldValue(incident, fieldName) {
   if (fieldName === 'Time to Stabilize') {
     // Use the new function to get Time to Stabilize timestamp
     return getTimeToStabilizeTimestamp(incident);
+  }
+  
+  // Handle Time to Respond - check duration metrics
+  if (fieldName === 'Time to Respond') {
+    return getTimeToRespondTimestamp(incident);
   }
   
   // Map required field names to actual incident.io field names
@@ -203,6 +209,19 @@ function testDebugCashINC6287() {
 }
 
 /**
+ * Test Time to Respond field extraction on a recent incident
+ */
+function testTimeToRespondExtraction() {
+  console.log('🔍 Testing Time to Respond field extraction...');
+  
+  // Test with INC-6071 (Square) - we know this incident works
+  const result = debugIncidentTimestamps('INC-6071', 'square');
+  console.log('📋 Available timestamps for INC-6071:', JSON.stringify(result, null, 2));
+  
+  return result;
+}
+
+/**
  * Get Time to Stabilize timestamp from incident.io incident using V2 timestamps endpoint
  */
 function getTimeToStabilizeTimestamp(incident) {
@@ -213,6 +232,39 @@ function getTimeToStabilizeTimestamp(incident) {
   
   const durationEntry = incident.duration_metrics.find(entry => 
     entry.duration_metric.name === 'Time to Stabilize'
+  );
+  
+  if (!durationEntry?.value_seconds) {
+    return '';
+  }
+  
+  // Convert seconds to hours and minutes for better readability
+  const totalSeconds = durationEntry.value_seconds;
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  
+  if (hours > 0 && minutes > 0) {
+    return `${hours}h ${minutes}m`;
+  } else if (hours > 0) {
+    return `${hours}h`;
+  } else if (minutes > 0) {
+    return `${minutes}m`;
+  } else {
+    return `${totalSeconds}s`;
+  }
+}
+
+/**
+ * Get Time to Respond duration from incident.io incident using duration_metrics
+ */
+function getTimeToRespondTimestamp(incident) {
+  // Time to Respond is in duration_metrics, similar to Time to Stabilize
+  if (!incident.duration_metrics) {
+    return '';
+  }
+  
+  const durationEntry = incident.duration_metrics.find(entry => 
+    entry.duration_metric.name === 'Time to Respond'
   );
   
   if (!durationEntry?.value_seconds) {
