@@ -3373,7 +3373,7 @@ function calculateMedianFromTimeArray(timeArray) {
     };
   }
   
-  if (timeArray.length < 3) {
+  if (timeArray.length < 2) {
     return {
       display: `Insufficient data (n=${timeArray.length})`,
       seconds: 0,
