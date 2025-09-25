@@ -118,9 +118,7 @@ function createCustomMenu() {
     .addSeparator()
     .addSubMenu(ui.createMenu('🧪 Testing')
       .addItem('🔗 Test API Connections', 'testAllApiConnections')
-      .addItem('📧 Send Test Email', 'sendTestEmail')
-      .addSeparator()
-      .addItem('📊 Test Median Calculations', 'testMedianCalculations'))
+      .addItem('📧 Send Test Email', 'sendTestEmail'))
     .addSeparator()
     .addItem('ℹ️ About This Report', 'showAboutDialog')
     .addToUi();
