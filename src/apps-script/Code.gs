@@ -2462,13 +2462,15 @@ function buildWeeklySummaryEmailContent(weeklySummary, config) {
             <table>
               <thead>
                 <tr>
-                  <th style="width: 20%;">Business Unit</th>
-                  <th style="width: 16%; text-align: center;">Overall Field Rate</th>
-                  <th style="width: 16%; text-align: center;">Affected Markets</th>
-                  <th style="width: 16%; text-align: center;">Causal Type</th>
-                  <th style="width: 16%; text-align: center;">Stabilization Type</th>
-                  <th style="width: 16%; text-align: center;">Impact Start Date</th>
-                  <th style="width: 16%; text-align: center;">Transcript URL</th>
+                  <th style="width: 15%;">Business Unit</th>
+                  <th style="width: 12%; text-align: center;">Overall Field Rate</th>
+                  <th style="width: 12%; text-align: center;">Affected Markets</th>
+                  <th style="width: 12%; text-align: center;">Causal Type</th>
+                  <th style="width: 12%; text-align: center;">Stabilization Type</th>
+                  <th style="width: 12%; text-align: center;">Impact Start Date</th>
+                  <th style="width: 12%; text-align: center;">Time to Stabilize</th>
+                  <th style="width: 12%; text-align: center;">Time to Respond</th>
+                  <th style="width: 12%; text-align: center;">Transcript URL</th>
                 </tr>
               </thead>
               <tbody>
