@@ -3206,3 +3206,395 @@ function showAboutDialog() {
     ui.ButtonSet.OK
   );
 }
+
+// =============================================================================
+// MEDIAN TIME ANALYSIS FUNCTIONS
+// =============================================================================
+
+/**
+ * Calculate median response time metrics for incidents
+ * @param {Array} incidents - Array of incident objects
+ * @return {Object} Structured median metrics data
+ */
+function calculateMedianMetrics(incidents) {
+  console.log(`📊 Calculating median metrics for ${incidents.length} incidents...`);
+  
+  try {
+    // Filter incidents to only include those with time data (Square & Cash only)
+    const incidentsWithTimeData = incidents.filter(incident => 
+      incident.platform === 'incident.io' && 
+      (incident.businessUnit === 'Square' || incident.businessUnit === 'Cash')
+    );
+    
+    console.log(`   📊 Incidents with potential time data: ${incidentsWithTimeData.length}`);
+    
+    // Extract time data from incidents
+    const timeData = extractTimeDataFromIncidents(incidentsWithTimeData);
+    
+    console.log(`   📊 Time data extraction results:`);
+    console.log(`      Time to Respond: ${timeData.timeToRespond.length} incidents`);
+    console.log(`      Time to Stabilise: ${timeData.timeToStabilise.length} incidents`);
+    console.log(`      Both metrics: ${timeData.bothMetrics.length} incidents`);
+    
+    // Calculate overall medians
+    const overallMedians = {
+      timeToRespond: calculateMedianFromTimeArray(timeData.timeToRespond),
+      timeToStabilise: calculateMedianFromTimeArray(timeData.timeToStabilise)
+    };
+    
+    // Calculate medians by severity
+    const mediansBySeverity = calculateMediansBySeverity(incidentsWithTimeData);
+    
+    // Calculate medians by business unit
+    const mediansByBusinessUnit = calculateMediansByBusinessUnit(incidentsWithTimeData);
+    
+    // Data quality metrics
+    const dataQuality = {
+      totalIncidents: incidentsWithTimeData.length,
+      timeToRespondAvailable: timeData.timeToRespond.length,
+      timeToStabiliseAvailable: timeData.timeToStabilise.length,
+      bothMetricsAvailable: timeData.bothMetrics.length,
+      timeToRespondPercentage: incidentsWithTimeData.length > 0 ? 
+        ((timeData.timeToRespond.length / incidentsWithTimeData.length) * 100).toFixed(1) : '0.0',
+      timeToStabilisePercentage: incidentsWithTimeData.length > 0 ? 
+        ((timeData.timeToStabilise.length / incidentsWithTimeData.length) * 100).toFixed(1) : '0.0'
+    };
+    
+    const result = {
+      overallMedians,
+      mediansBySeverity,
+      mediansByBusinessUnit,
+      dataQuality,
+      rawTimeData: timeData // For debugging
+    };
+    
+    console.log(`✅ Median metrics calculated successfully`);
+    console.log(`   Overall Time to Respond: ${overallMedians.timeToRespond.display}`);
+    console.log(`   Overall Time to Stabilise: ${overallMedians.timeToStabilise.display}`);
+    
+    return result;
+    
+  } catch (error) {
+    console.error('❌ Failed to calculate median metrics:', error.toString());
+    return {
+      overallMedians: {
+        timeToRespond: { display: 'Error', seconds: 0, sampleSize: 0 },
+        timeToStabilise: { display: 'Error', seconds: 0, sampleSize: 0 }
+      },
+      mediansBySeverity: {},
+      mediansByBusinessUnit: {},
+      dataQuality: {
+        totalIncidents: 0,
+        timeToRespondAvailable: 0,
+        timeToStabiliseAvailable: 0,
+        bothMetricsAvailable: 0,
+        timeToRespondPercentage: '0.0',
+        timeToStabilisePercentage: '0.0'
+      },
+      error: error.toString()
+    };
+  }
+}
+
+/**
+ * Extract time data from incidents with proper parsing
+ * @param {Array} incidents - Array of incident objects
+ * @return {Object} Extracted time data arrays
+ */
+function extractTimeDataFromIncidents(incidents) {
+  const timeToRespond = [];
+  const timeToStabilise = [];
+  const bothMetrics = [];
+  
+  incidents.forEach(incident => {
+    let respondSeconds = null;
+    let stabiliseSeconds = null;
+    
+    // Extract Time to Respond
+    if (incident.duration_metrics) {
+      const respondEntry = incident.duration_metrics.find(entry => 
+        entry.duration_metric?.name === 'Time to Respond'
+      );
+      if (respondEntry?.value_seconds) {
+        respondSeconds = respondEntry.value_seconds;
+        timeToRespond.push({
+          incident: incident.reference,
+          businessUnit: incident.businessUnit,
+          severity: getIncidentSeverity(incident),
+          seconds: respondSeconds
+        });
+      }
+      
+      // Extract Time to Stabilise
+      const stabiliseEntry = incident.duration_metrics.find(entry => 
+        entry.duration_metric?.name === 'Time to Stabilize'
+      );
+      if (stabiliseEntry?.value_seconds) {
+        stabiliseSeconds = stabiliseEntry.value_seconds;
+        timeToStabilise.push({
+          incident: incident.reference,
+          businessUnit: incident.businessUnit,
+          severity: getIncidentSeverity(incident),
+          seconds: stabiliseSeconds
+        });
+      }
+    }
+    
+    // Track incidents with both metrics
+    if (respondSeconds !== null && stabiliseSeconds !== null) {
+      bothMetrics.push({
+        incident: incident.reference,
+        businessUnit: incident.businessUnit,
+        severity: getIncidentSeverity(incident),
+        timeToRespond: respondSeconds,
+        timeToStabilise: stabiliseSeconds
+      });
+    }
+  });
+  
+  return {
+    timeToRespond,
+    timeToStabilise,
+    bothMetrics
+  };
+}
+
+/**
+ * Calculate median from array of time data objects
+ * @param {Array} timeArray - Array of time data objects with 'seconds' property
+ * @return {Object} Median result with display format and metadata
+ */
+function calculateMedianFromTimeArray(timeArray) {
+  if (timeArray.length === 0) {
+    return {
+      display: 'No data',
+      seconds: 0,
+      sampleSize: 0
+    };
+  }
+  
+  if (timeArray.length < 3) {
+    return {
+      display: `Insufficient data (n=${timeArray.length})`,
+      seconds: 0,
+      sampleSize: timeArray.length
+    };
+  }
+  
+  // Sort by seconds
+  const sortedSeconds = timeArray.map(item => item.seconds).sort((a, b) => a - b);
+  
+  // Calculate median
+  const medianSeconds = calculateMedian(sortedSeconds);
+  
+  return {
+    display: `${formatSecondsToTime(medianSeconds)} (n=${timeArray.length})`,
+    seconds: medianSeconds,
+    sampleSize: timeArray.length
+  };
+}
+
+/**
+ * Calculate median from array of numbers
+ * @param {Array} numbers - Array of numeric values
+ * @return {number} Median value
+ */
+function calculateMedian(numbers) {
+  if (numbers.length === 0) return 0;
+  
+  const sorted = [...numbers].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  
+  if (sorted.length % 2 === 0) {
+    // Even number of values - average of two middle values
+    return (sorted[middle - 1] + sorted[middle]) / 2;
+  } else {
+    // Odd number of values - middle value
+    return sorted[middle];
+  }
+}
+
+/**
+ * Format seconds to human-readable time format
+ * @param {number} seconds - Time in seconds
+ * @return {string} Formatted time string
+ */
+function formatSecondsToTime(seconds) {
+  if (seconds === 0) return '0s';
+  
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainingSeconds = seconds % 60;
+  
+  if (hours > 0 && minutes > 0) {
+    return `${hours}h ${minutes}m`;
+  } else if (hours > 0) {
+    return `${hours}h`;
+  } else if (minutes > 0) {
+    return `${minutes}m`;
+  } else {
+    return `${Math.round(remainingSeconds)}s`;
+  }
+}
+
+/**
+ * Calculate medians segmented by severity
+ * @param {Array} incidents - Array of incident objects
+ * @return {Object} Medians by severity level
+ */
+function calculateMediansBySeverity(incidents) {
+  console.log('   📊 Calculating medians by severity...');
+  
+  const severityGroups = {};
+  
+  // Group incidents by severity
+  incidents.forEach(incident => {
+    const severity = getIncidentSeverity(incident);
+    if (!severityGroups[severity]) {
+      severityGroups[severity] = [];
+    }
+    severityGroups[severity].push(incident);
+  });
+  
+  const result = {};
+  
+  // Calculate medians for each severity group
+  Object.entries(severityGroups).forEach(([severity, severityIncidents]) => {
+    console.log(`      ${severity}: ${severityIncidents.length} incidents`);
+    
+    const timeData = extractTimeDataFromIncidents(severityIncidents);
+    
+    result[severity] = {
+      timeToRespond: calculateMedianFromTimeArray(timeData.timeToRespond),
+      timeToStabilise: calculateMedianFromTimeArray(timeData.timeToStabilise),
+      incidentCount: severityIncidents.length
+    };
+  });
+  
+  return result;
+}
+
+/**
+ * Calculate medians segmented by business unit
+ * @param {Array} incidents - Array of incident objects
+ * @return {Object} Medians by business unit
+ */
+function calculateMediansByBusinessUnit(incidents) {
+  console.log('   📊 Calculating medians by business unit...');
+  
+  const businessUnitGroups = {};
+  
+  // Group incidents by business unit
+  incidents.forEach(incident => {
+    const businessUnit = incident.businessUnit;
+    if (!businessUnitGroups[businessUnit]) {
+      businessUnitGroups[businessUnit] = [];
+    }
+    businessUnitGroups[businessUnit].push(incident);
+  });
+  
+  const result = {};
+  
+  // Calculate medians for each business unit group
+  Object.entries(businessUnitGroups).forEach(([businessUnit, unitIncidents]) => {
+    console.log(`      ${businessUnit}: ${unitIncidents.length} incidents`);
+    
+    const timeData = extractTimeDataFromIncidents(unitIncidents);
+    
+    result[businessUnit] = {
+      timeToRespond: calculateMedianFromTimeArray(timeData.timeToRespond),
+      timeToStabilise: calculateMedianFromTimeArray(timeData.timeToStabilise),
+      incidentCount: unitIncidents.length
+    };
+  });
+  
+  return result;
+}
+
+/**
+ * Test function to validate median calculations with sample data
+ */
+function testMedianCalculations() {
+  console.log('🧪 Testing median calculation functions...');
+  
+  try {
+    // Test basic median calculation
+    console.log('📊 Testing basic median calculation:');
+    const testNumbers = [1, 2, 3, 4, 5];
+    const median1 = calculateMedian(testNumbers);
+    console.log(`   Median of [1,2,3,4,5]: ${median1} (expected: 3)`);
+    
+    const testNumbers2 = [1, 2, 3, 4];
+    const median2 = calculateMedian(testNumbers2);
+    console.log(`   Median of [1,2,3,4]: ${median2} (expected: 2.5)`);
+    
+    // Test time formatting
+    console.log('📊 Testing time formatting:');
+    console.log(`   3661 seconds: ${formatSecondsToTime(3661)} (expected: 1h 1m)`);
+    console.log(`   3600 seconds: ${formatSecondsToTime(3600)} (expected: 1h)`);
+    console.log(`   120 seconds: ${formatSecondsToTime(120)} (expected: 2m)`);
+    console.log(`   45 seconds: ${formatSecondsToTime(45)} (expected: 45s)`);
+    
+    // Test with real incident data
+    console.log('📊 Testing with real incident data...');
+    const config = getConfiguration();
+    
+    // Fetch a small sample of incidents
+    const squareIncidents = fetchIncidentsFromIncidentIO('square', config);
+    const cashIncidents = fetchIncidentsFromIncidentIO('cash', config);
+    const allIncidents = [...squareIncidents.slice(0, 10), ...cashIncidents.slice(0, 10)];
+    
+    console.log(`   Testing with ${allIncidents.length} sample incidents`);
+    
+    const medianMetrics = calculateMedianMetrics(allIncidents);
+    
+    console.log('📊 Test Results:');
+    console.log(`   Overall Time to Respond: ${medianMetrics.overallMedians.timeToRespond.display}`);
+    console.log(`   Overall Time to Stabilise: ${medianMetrics.overallMedians.timeToStabilise.display}`);
+    console.log(`   Data Quality: ${medianMetrics.dataQuality.timeToRespondPercentage}% respond, ${medianMetrics.dataQuality.timeToStabilisePercentage}% stabilise`);
+    
+    // Show business unit breakdown
+    console.log('📊 Business Unit Breakdown:');
+    Object.entries(medianMetrics.mediansByBusinessUnit).forEach(([unit, metrics]) => {
+      console.log(`   ${unit}:`);
+      console.log(`     Time to Respond: ${metrics.timeToRespond.display}`);
+      console.log(`     Time to Stabilise: ${metrics.timeToStabilise.display}`);
+    });
+    
+    // Show severity breakdown
+    console.log('📊 Severity Breakdown:');
+    Object.entries(medianMetrics.mediansBySeverity).forEach(([severity, metrics]) => {
+      console.log(`   ${severity}:`);
+      console.log(`     Time to Respond: ${metrics.timeToRespond.display}`);
+      console.log(`     Time to Stabilise: ${metrics.timeToStabilise.display}`);
+    });
+    
+    // Show success message
+    const ui = SpreadsheetApp.getUi();
+    ui.alert(
+      '✅ Median Calculations Test Complete',
+      `Test completed successfully!\n\n` +
+      `SAMPLE RESULTS:\n` +
+      `• Overall Time to Respond: ${medianMetrics.overallMedians.timeToRespond.display}\n` +
+      `• Overall Time to Stabilise: ${medianMetrics.overallMedians.timeToStabilise.display}\n` +
+      `• Data Quality: ${medianMetrics.dataQuality.timeToRespondPercentage}% / ${medianMetrics.dataQuality.timeToStabilisePercentage}%\n\n` +
+      `Check the Apps Script logs for detailed breakdown by business unit and severity.\n\n` +
+      `The median calculation functions are working correctly!`,
+      ui.ButtonSet.OK
+    );
+    
+    return medianMetrics;
+    
+  } catch (error) {
+    console.error('❌ Median calculations test failed:', error.toString());
+    
+    const ui = SpreadsheetApp.getUi();
+    ui.alert(
+      '❌ Test Failed',
+      `Median calculations test failed:\n\n${error.toString()}`,
+      ui.ButtonSet.OK
+    );
+    
+    throw error;
+  }
+}

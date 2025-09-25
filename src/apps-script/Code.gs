@@ -118,7 +118,9 @@ function createCustomMenu() {
     .addSeparator()
     .addSubMenu(ui.createMenu('🧪 Testing')
       .addItem('🔗 Test API Connections', 'testAllApiConnections')
-      .addItem('📧 Send Test Email', 'sendTestEmail'))
+      .addItem('📧 Send Test Email', 'sendTestEmail')
+      .addSeparator()
+      .addItem('📊 Test Median Calculations', 'testMedianCalculations'))
     .addSeparator()
     .addItem('ℹ️ About This Report', 'showAboutDialog')
     .addToUi();
@@ -1629,6 +1631,11 @@ function runWeeklySummaryReport() {
     // Generate weekly summary metrics
     const weeklySummary = generateWeeklySummary(allIncidents, incidentsWithMissingFields, incidentsWithCompleteFields, startDate, endDate);
     
+    // Calculate median time metrics for response time analysis
+    console.log('📊 Calculating median time metrics for weekly summary...');
+    const medianTimeMetrics = calculateMedianMetrics(allIncidents);
+    weeklySummary.medianTimeMetrics = medianTimeMetrics;
+    
     // Send weekly summary email
     sendWeeklySummaryEmail(weeklySummary, config);
     
@@ -2360,6 +2367,8 @@ function buildWeeklySummaryEmailContent(weeklySummary, config) {
           </div>
         </div>
         
+        ${buildResponseTimeAnalysisSection(weeklySummary)}
+        
         <div class="metric-card">
           <h2>🏢 Business Unit Breakdown</h2>
           <table>
@@ -2557,6 +2566,206 @@ function buildWeeklySummaryEmailContent(weeklySummary, config) {
   `;
   
   return { html };
+}
+
+/**
+ * Build Response Time Analysis section for weekly email
+ * @param {Object} weeklySummary - Weekly summary data including median metrics
+ * @return {string} HTML for the response time analysis section
+ */
+function buildResponseTimeAnalysisSection(weeklySummary) {
+  // Check if median time metrics are available
+  if (!weeklySummary.medianTimeMetrics) {
+    return `
+      <div class="metric-card">
+        <h2>📈 Response Time Analysis</h2>
+        <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px; padding: 15px; text-align: center;">
+          <p style="margin: 0; color: #856404;">
+            <strong>⚠️ Response Time Analysis Unavailable</strong><br>
+            Median time calculations require incident data from Square and Cash platforms.
+          </p>
+        </div>
+      </div>
+    `;
+  }
+  
+  const metrics = weeklySummary.medianTimeMetrics;
+  
+  // Build overall medians section
+  const overallMediansHtml = `
+    <div style="display: flex; flex-wrap: wrap; gap: 25px; justify-content: space-between; margin-bottom: 20px;">
+      <div style="flex: 1; min-width: 200px; text-align: center; padding: 15px; border: 1px solid #e9ecef; border-radius: 6px; background-color: #f8f9fa;">
+        <div style="font-size: 24px; font-weight: bold; margin: 5px 0; color: #007bff;">
+          ${metrics.overallMedians.timeToRespond.display}
+        </div>
+        <div style="font-size: 14px; color: #666; margin-top: 8px; line-height: 1.3;">
+          Median Time<br>to Respond
+        </div>
+      </div>
+      <div style="flex: 1; min-width: 200px; text-align: center; padding: 15px; border: 1px solid #e9ecef; border-radius: 6px; background-color: #f8f9fa;">
+        <div style="font-size: 24px; font-weight: bold; margin: 5px 0; color: #28a745;">
+          ${metrics.overallMedians.timeToStabilise.display}
+        </div>
+        <div style="font-size: 14px; color: #666; margin-top: 8px; line-height: 1.3;">
+          Median Time<br>to Stabilise
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // Build severity breakdown table
+  let severityTableRows = '';
+  const severityOrder = ['SEV0', 'SEV1', 'SEV2', 'SEV3', 'SEV4', 'Unknown'];
+  
+  // Filter and sort severities that have data
+  const availableSeverities = Object.keys(metrics.mediansBySeverity).filter(severity => 
+    metrics.mediansBySeverity[severity].incidentCount > 0
+  ).sort((a, b) => {
+    const aIndex = severityOrder.indexOf(a);
+    const bIndex = severityOrder.indexOf(b);
+    if (aIndex === -1 && bIndex === -1) return a.localeCompare(b);
+    if (aIndex === -1) return 1;
+    if (bIndex === -1) return -1;
+    return aIndex - bIndex;
+  });
+  
+  if (availableSeverities.length > 0) {
+    availableSeverities.forEach(severity => {
+      const data = metrics.mediansBySeverity[severity];
+      const severityColor = severity === 'SEV0' ? '#dc3545' : 
+                           severity === 'SEV1' ? '#fd7e14' : 
+                           severity === 'SEV2' ? '#ffc107' : 
+                           severity === 'SEV3' ? '#28a745' : 
+                           severity === 'SEV4' ? '#6c757d' : '#17a2b8';
+      
+      severityTableRows += `
+        <tr>
+          <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; color: ${severityColor};">
+            ${severity}
+          </td>
+          <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">
+            ${data.incidentCount}
+          </td>
+          <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: #007bff; font-weight: 500;">
+            ${data.timeToRespond.display}
+          </td>
+          <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: #28a745; font-weight: 500;">
+            ${data.timeToStabilise.display}
+          </td>
+        </tr>
+      `;
+    });
+  } else {
+    severityTableRows = `
+      <tr>
+        <td colspan="4" style="padding: 12px; border: 1px solid #ddd; text-align: center; color: #6c757d; font-style: italic;">
+          No severity data available for response time analysis
+        </td>
+      </tr>
+    `;
+  }
+  
+  // Build business unit breakdown table
+  let businessUnitTableRows = '';
+  const businessUnits = ['Square', 'Cash']; // Only Square and Cash have time data
+  
+  const availableBusinessUnits = businessUnits.filter(unit => 
+    metrics.mediansByBusinessUnit[unit] && metrics.mediansByBusinessUnit[unit].incidentCount > 0
+  );
+  
+  if (availableBusinessUnits.length > 0) {
+    availableBusinessUnits.forEach(unit => {
+      const data = metrics.mediansByBusinessUnit[unit];
+      const unitColor = unit === 'Square' ? '#1f77b4' : '#ff7f0e';
+      
+      businessUnitTableRows += `
+        <tr>
+          <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; color: ${unitColor};">
+            ${unit}
+          </td>
+          <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">
+            ${data.incidentCount}
+          </td>
+          <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: #007bff; font-weight: 500;">
+            ${data.timeToRespond.display}
+          </td>
+          <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: #28a745; font-weight: 500;">
+            ${data.timeToStabilise.display}
+          </td>
+        </tr>
+      `;
+    });
+  } else {
+    businessUnitTableRows = `
+      <tr>
+        <td colspan="4" style="padding: 12px; border: 1px solid #ddd; text-align: center; color: #6c757d; font-style: italic;">
+          No business unit data available for response time analysis
+        </td>
+      </tr>
+    `;
+  }
+  
+  // Build data quality section
+  const dataQualityHtml = `
+    <div style="background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px; padding: 15px; margin-top: 20px;">
+      <h4 style="margin: 0 0 10px 0; color: #495057; font-size: 14px;">📊 Data Quality</h4>
+      <div style="display: flex; flex-wrap: wrap; gap: 20px;">
+        <div style="flex: 1; min-width: 150px;">
+          <strong>Time to Respond:</strong> ${metrics.dataQuality.timeToRespondAvailable}/${metrics.dataQuality.totalIncidents} incidents (${metrics.dataQuality.timeToRespondPercentage}%)
+        </div>
+        <div style="flex: 1; min-width: 150px;">
+          <strong>Time to Stabilise:</strong> ${metrics.dataQuality.timeToStabiliseAvailable}/${metrics.dataQuality.totalIncidents} incidents (${metrics.dataQuality.timeToStabilisePercentage}%)
+        </div>
+        <div style="flex: 1; min-width: 150px;">
+          <strong>Both Metrics:</strong> ${metrics.dataQuality.bothMetricsAvailable}/${metrics.dataQuality.totalIncidents} incidents
+        </div>
+      </div>
+      <p style="margin: 10px 0 0 0; font-size: 12px; color: #6c757d;">
+        <em>Note: Response time analysis is only available for Square and Cash incidents (incident.io platform).</em>
+      </p>
+    </div>
+  `;
+  
+  return `
+    <div class="metric-card">
+      <h2>📈 Response Time Analysis</h2>
+      
+      <h3 style="color: #495057; font-size: 16px; margin-bottom: 15px;">⏱️ Overall Medians</h3>
+      ${overallMediansHtml}
+      
+      <h3 style="color: #495057; font-size: 16px; margin-bottom: 15px;">🚨 By Severity</h3>
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+        <thead>
+          <tr style="background-color: #f8f9fa;">
+            <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Severity</th>
+            <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Incidents</th>
+            <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Median Time to Respond</th>
+            <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Median Time to Stabilise</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${severityTableRows}
+        </tbody>
+      </table>
+      
+      <h3 style="color: #495057; font-size: 16px; margin-bottom: 15px;">🏢 By Business Unit</h3>
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+        <thead>
+          <tr style="background-color: #f8f9fa;">
+            <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Business Unit</th>
+            <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Incidents</th>
+            <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Median Time to Respond</th>
+            <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Median Time to Stabilise</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${businessUnitTableRows}
+        </tbody>
+      </table>
+      
+      ${dataQualityHtml}
+    </div>
+  `;
 }
 
 /**
