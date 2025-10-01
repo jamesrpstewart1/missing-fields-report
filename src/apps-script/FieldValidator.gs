@@ -45,7 +45,7 @@ function getPlatformRequiredFields(platform) {
       'Affected Markets', 
       'Causal Type', 
       'Stabilization Type',
-      'Impact Start Date',  // Impact start timestamp
+      'Impact Start',  // Impact start timestamp
       'Time to Stabilize',  // New: Time to stabilize timestamp
       'Time to Respond',    // New: Time to respond duration
       'Transcript URL'      // New: Google Meet transcript document
@@ -89,8 +89,8 @@ function getIncidentIOFieldValue(incident, fieldName) {
     return '';
   }
   
-  // Handle Impact Start Date - check custom timestamps
-  if (fieldName === 'Impact Start Date') {
+  // Handle Impact Start - check custom timestamps
+  if (fieldName === 'Impact Start') {
     // TODO: Need to investigate incident.io custom timestamps structure
     // This will be implemented after deeper research
     return getImpactStartTimestamp(incident);

@@ -79,7 +79,7 @@ const REQUIRED_FIELDS = [
   'Affected Markets',
   'Causal Type',
   'Stabilization Type',
-  'Impact Start Date',  // Impact start timestamp
+  'Impact Start',  // Impact start timestamp
   'Time to Stabilize',  // New: Time to stabilize timestamp
   'Time to Respond',    // New: Time to respond duration
   'Transcript URL'      // New: Google Meet transcript document
@@ -1681,7 +1681,7 @@ function generateWeeklySummary(allIncidents, incidentsWithMissingFields, inciden
   const incompletionPercentage = totalIncidents > 0 ? 
     ((incompleteIncidents / totalIncidents) * 100).toFixed(1) : '0.0';
   
-  const requiredFields = ['Affected Markets', 'Causal Type', 'Stabilization Type', 'Impact Start Date', 'Transcript URL', 'Time to Stabilize', 'Time to Respond']; // Your actual required fields
+  const requiredFields = ['Affected Markets', 'Causal Type', 'Stabilization Type', 'Impact Start', 'Transcript URL', 'Time to Stabilize', 'Time to Respond']; // Your actual required fields
   const totalPossibleFields = totalIncidents * requiredFields.length;
   
   let totalCompletedFields = 0;
@@ -2368,11 +2368,11 @@ function buildWeeklySummaryEmailContent(weeklySummary, config) {
         ${buildResponseTimeAnalysisSection(weeklySummary)}
         
         <div class="metric-card">
-          <h2>🏢 Business Unit Breakdown</h2>
+          <h2>🏢 Brand Breakdown</h2>
           <table>
             <thead>
               <tr>
-                <th>Business Unit</th>
+                <th>Brand</th>
                 <th>Total Incidents</th>
                 <th>Incidents with ALL Fields Completed</th>
                 <th>Incidents with Missing Fields</th>
@@ -2458,16 +2458,16 @@ function buildWeeklySummaryEmailContent(weeklySummary, config) {
           </div>
           
           <div>
-            <h3 style="color: #495057; font-size: 16px; margin-bottom: 15px;">🏢 Business Unit Field Performance</h3>
+            <h3 style="color: #495057; font-size: 16px; margin-bottom: 15px;">🏢 Brand Field Performance</h3>
             <table>
               <thead>
                 <tr>
-                  <th style="width: 15%;">Business Unit</th>
+                  <th style="width: 15%;">Brand</th>
                   <th style="width: 12%; text-align: center;">Overall Field Rate</th>
                   <th style="width: 12%; text-align: center;">Affected Markets</th>
                   <th style="width: 12%; text-align: center;">Causal Type</th>
                   <th style="width: 12%; text-align: center;">Stabilization Type</th>
-                  <th style="width: 12%; text-align: center;">Impact Start Date</th>
+                  <th style="width: 12%; text-align: center;">Impact Start</th>
                   <th style="width: 12%; text-align: center;">Time to Stabilize</th>
                   <th style="width: 12%; text-align: center;">Time to Respond</th>
                   <th style="width: 12%; text-align: center;">Transcript URL</th>
@@ -2547,9 +2547,8 @@ function buildWeeklySummaryEmailContent(weeklySummary, config) {
           <ul>
             <li><strong>Affected Markets</strong></li>
             <li><strong>Causal Type</strong></li>
-            <li><strong>Causal Type</strong></li>
             <li><strong>Stabilization Type</strong></li>
-            <li><strong>Impact Start Date</strong></li>
+            <li><strong>Impact Start</strong></li>
             <li><strong>Time to Stabilize</strong></li>
             <li><strong>Time to Respond</strong></li>
             <li><strong>Transcript URL</strong></li>
@@ -2748,11 +2747,11 @@ function buildResponseTimeAnalysisSection(weeklySummary) {
         </tbody>
       </table>
       
-      <h3 style="color: #495057; font-size: 16px; margin-bottom: 15px;">🏢 By Business Unit</h3>
+      <h3 style="color: #495057; font-size: 16px; margin-bottom: 15px;">🏢 By Brand</h3>
       <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
         <thead>
           <tr style="background-color: #f8f9fa;">
-            <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Business Unit</th>
+            <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Brand</th>
             <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Incidents</th>
             <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Median Time to Respond</th>
             <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Median Time to Stabilise</th>
@@ -2804,8 +2803,8 @@ function updateREADMESheet() {
       [''],
       ['🏢 BUSINESS UNIT & PLATFORM MAPPING'],
       ['Business Unit | Platform | API Source | Required Fields'],
-      ['Square | incident.io | api.incident.io/v2 | Affected Markets, Causal Type, Stabilization Type, Impact Start Date, Transcript URL'],
-      ['Cash | incident.io | api.incident.io/v2 | Affected Markets, Causal Type, Stabilization Type, Impact Start Date, Transcript URL'],
+      ['Square | incident.io | api.incident.io/v2 | Affected Markets, Causal Type, Stabilization Type, Impact Start, Transcript URL'],
+      ['Cash | incident.io | api.incident.io/v2 | Affected Markets, Causal Type, Stabilization Type, Impact Start, Transcript URL'],
       ['Afterpay | FireHydrant | api.firehydrant.io/v1 | Market'],
       [''],
       ['🔍 FILTERING CRITERIA'],
