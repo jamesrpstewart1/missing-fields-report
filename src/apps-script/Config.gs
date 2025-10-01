@@ -23,13 +23,30 @@ function getConfiguration() {
     // Parse configuration data (assuming Parameter | Value format)
     for (let i = 1; i < data.length; i++) { // Skip header row
       const [parameter, value] = data[i];
-      if (parameter && value) {
-        config[parameter] = parseConfigValue(value);
+      if (parameter && value !== null && value !== undefined) {
+        const parsedValue = parseConfigValue(value);
+        config[parameter] = parsedValue;
+        
+        // Debug logging for includeInternalImpact specifically
+        if (parameter === 'includeInternalImpact') {
+          console.log(`   🔍 includeInternalImpact: raw="${value}" (${typeof value}) → parsed=${parsedValue} (${typeof parsedValue})`);
+        }
       }
     }
     
+    // Get default configuration
+    const defaultConfig = getDefaultConfiguration();
+    
+    // Merge configurations with explicit logging for includeInternalImpact
+    const mergedConfig = { ...defaultConfig, ...config };
+    
+    if ('includeInternalImpact' in config) {
+      console.log(`   🔍 Merge result: includeInternalImpact = ${mergedConfig.includeInternalImpact} (${typeof mergedConfig.includeInternalImpact})`);
+      console.log(`   🔍 Default was: ${defaultConfig.includeInternalImpact}, Sheet override: ${config.includeInternalImpact}`);
+    }
+    
     console.log('✅ Configuration loaded successfully');
-    return { ...getDefaultConfiguration(), ...config };
+    return mergedConfig;
     
   } catch (error) {
     console.error('❌ Failed to load configuration:', error.toString());
@@ -53,7 +70,7 @@ function getDefaultConfiguration() {
     // Email configuration
     emailRecipients: ['jamesstewart@squareup.com'], // Development/testing
     
-    // Business units
+    // Brands (formerly business units)
     businessUnits: ['square', 'cash', 'afterpay'],
     
     // Incident filtering
@@ -152,7 +169,7 @@ function updateTrackingSheet(incidentsWithMissingFields) {
         'Timestamp',
         'Reference',
         'Platform',
-        'Business Unit',
+        'Brand',
         'Summary',
         'Missing Fields',
         'Slack Link',  // Changed from URL to Slack Link
@@ -350,6 +367,7 @@ function analyzeIncidents(incidents) {
       'Causal Type': { '0-7 days': 0, '7-30 days': 0, '30-90 days': 0, '90+ days': 0 },
       'Stabilization Type': { '0-7 days': 0, '7-30 days': 0, '30-90 days': 0, '90+ days': 0 },
       'Impact Start Date': { '0-7 days': 0, '7-30 days': 0, '30-90 days': 0, '90+ days': 0 },
+      'Stabilized at': { '0-7 days': 0, '7-30 days': 0, '30-90 days': 0, '90+ days': 0 },
       'Transcript URL': { '0-7 days': 0, '7-30 days': 0, '30-90 days': 0, '90+ days': 0 },
       'Time to Stabilize': { '0-7 days': 0, '7-30 days': 0, '30-90 days': 0, '90+ days': 0 },
       'Time to Respond': { '0-7 days': 0, '7-30 days': 0, '30-90 days': 0, '90+ days': 0 }
@@ -526,7 +544,7 @@ function buildBusinessUnitRows(analysis, config) {
  * Build missing field rows for the summary with smart N/A handling
  */
 function buildMissingFieldRows(analysis, config) {
-  const fieldTypes = ['Affected Markets', 'Causal Type', 'Stabilization Type', 'Impact Start Date', 'Transcript URL', 'Time to Stabilize', 'Time to Respond'];
+  const fieldTypes = ['Affected Markets', 'Causal Type', 'Stabilization Type', 'Impact Start Date', 'Stabilized at', 'Transcript URL', 'Time to Stabilize', 'Time to Respond'];
   const buckets = ['0-7 days', '7-30 days', '30-90 days', '90+ days'];
   const availableBuckets = getAvailableAgeBuckets(config.maxLookbackDays || 365);
   const rows = [];
@@ -2055,7 +2073,7 @@ function getSeverityFilteringSummary(config) {
   
   const incidentioSeverities = config.incidentioSeverities || [];
   const firehydrantSeverities = config.firehydrantSeverities || [];
-  const includeInternalImpact = config.includeInternalImpact !== false;
+  const includeInternalImpact = config.includeInternalImpact === true; // Respect the actual config value
   
   const incidentioText = incidentioSeverities.length > 0 ? incidentioSeverities.join(',') : 'None';
   const firehydrantText = firehydrantSeverities.length > 0 ? firehydrantSeverities.join(',') : 'None';
@@ -2190,7 +2208,7 @@ function updateTrackingSheetWithDateRange(incidentsWithMissingFields, config) {
         'Timestamp',
         'Reference',
         'Platform',
-        'Business Unit',
+        'Brand',
         'Summary',
         'Missing Fields',
         'Slack Link',  // Changed from URL to Slack Link
@@ -2392,7 +2410,7 @@ function buildBusinessUnitRowsForDateRange(analysis) {
  * Build missing field rows for date range (show all buckets)
  */
 function buildMissingFieldRowsForDateRange(analysis) {
-  const fieldTypes = ['Affected Markets', 'Causal Type', 'Stabilization Type', 'Impact Start Date', 'Transcript URL', 'Time to Stabilize', 'Time to Respond'];
+  const fieldTypes = ['Affected Markets', 'Causal Type', 'Stabilization Type', 'Impact Start Date', 'Stabilized at', 'Transcript URL', 'Time to Stabilize', 'Time to Respond'];
   const buckets = ['0-7 days', '7-30 days', '30-90 days', '90+ days'];
   const rows = [];
   
@@ -3187,6 +3205,8 @@ function applyTargetedFormattingFixes(sheet) {
     console.error('❌ Failed to apply targeted formatting fixes:', error.toString());
   }
 }
+
+
 
 /**
  * Show about dialog
