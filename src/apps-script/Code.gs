@@ -80,6 +80,7 @@ const REQUIRED_FIELDS = [
   'Causal Type',
   'Stabilization Type',
   'Impact Start',  // Impact start timestamp
+  'Stabilized at', // Stabilized timestamp
   'Time to Stabilize',  // New: Time to stabilize timestamp
   'Time to Respond',    // New: Time to respond duration
   'Transcript URL'      // New: Google Meet transcript document
@@ -1681,7 +1682,7 @@ function generateWeeklySummary(allIncidents, incidentsWithMissingFields, inciden
   const incompletionPercentage = totalIncidents > 0 ? 
     ((incompleteIncidents / totalIncidents) * 100).toFixed(1) : '0.0';
   
-  const requiredFields = ['Affected Markets', 'Causal Type', 'Stabilization Type', 'Impact Start', 'Transcript URL', 'Time to Stabilize', 'Time to Respond']; // Your actual required fields
+  const requiredFields = ['Affected Markets', 'Causal Type', 'Stabilization Type', 'Impact Start', 'Stabilized at', 'Transcript URL', 'Time to Stabilize', 'Time to Respond']; // Your actual required fields
   const totalPossibleFields = totalIncidents * requiredFields.length;
   
   let totalCompletedFields = 0;
@@ -2549,6 +2550,7 @@ function buildWeeklySummaryEmailContent(weeklySummary, config) {
             <li><strong>Causal Type</strong></li>
             <li><strong>Stabilization Type</strong></li>
             <li><strong>Impact Start</strong></li>
+            <li><strong>Stabilized at</strong></li>
             <li><strong>Time to Stabilize</strong></li>
             <li><strong>Time to Respond</strong></li>
             <li><strong>Transcript URL</strong></li>

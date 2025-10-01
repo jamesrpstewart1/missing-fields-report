@@ -46,6 +46,7 @@ function getPlatformRequiredFields(platform) {
       'Causal Type', 
       'Stabilization Type',
       'Impact Start',  // Impact start timestamp
+      'Stabilized at', // Stabilized timestamp
       'Time to Stabilize',  // New: Time to stabilize timestamp
       'Time to Respond',    // New: Time to respond duration
       'Transcript URL'      // New: Google Meet transcript document
@@ -94,6 +95,11 @@ function getIncidentIOFieldValue(incident, fieldName) {
     // TODO: Need to investigate incident.io custom timestamps structure
     // This will be implemented after deeper research
     return getImpactStartTimestamp(incident);
+  }
+  
+  // Handle Stabilized at - check custom timestamps
+  if (fieldName === 'Stabilized at') {
+    return getStabilizedAtTimestamp(incident);
   }
   
   // Handle Time to Stabilize - check custom timestamps
@@ -149,6 +155,32 @@ function getImpactStartTimestamp(incident) {
   }
   
   return timestampEntry?.value?.value || incident.occurred_at || '';
+}
+
+/**
+ * Get Stabilized at timestamp from incident.io incident using V2 timestamps endpoint
+ */
+function getStabilizedAtTimestamp(incident) {
+  // Use incident_timestamp_values structure (not incident_timestamps)
+  if (!incident.incident_timestamp_values) {
+    return ''; // No fallback for stabilized timestamp
+  }
+  
+  // Handle case sensitivity differences between Square and Cash APIs
+  let timestampEntry = incident.incident_timestamp_values.find(entry => 
+    entry.incident_timestamp.name === 'Stabilized at'
+  );
+  
+  // Try alternative names if not found
+  if (!timestampEntry) {
+    timestampEntry = incident.incident_timestamp_values.find(entry => 
+      entry.incident_timestamp.name === 'Stabilised at' ||
+      entry.incident_timestamp.name === 'Stabilized' ||
+      entry.incident_timestamp.name === 'Stabilised'
+    );
+  }
+  
+  return timestampEntry?.value?.value || '';
 }
 
 /**
