@@ -341,6 +341,137 @@ function dailyAutomatedCheck() {
 }
 
 /**
+ * Global team automated check - handles UK, US, AU shift handovers
+ * Called by multiple triggers at different times for global team coordination
+ */
+function globalTeamAutomatedCheck() {
+  console.log('🌍 Global team automated check triggered');
+  
+  try {
+    const now = new Date();
+    const currentHour = now.getHours(); // UK time
+    const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    
+    // Check if it's a weekday (Monday-Friday)
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      console.log(`⏭️ Skipping global team check - Weekend (day ${dayOfWeek})`);
+      return;
+    }
+    
+    // Determine which team shift this is for based on current hour
+    let teamContext = '';
+    let shiftDescription = '';
+    
+    // Get current UK DST status for context
+    const ukTimes = getUKShiftTimes();
+    
+    if (currentHour === 0) {
+      // 00:00 UK time - AU team shift start
+      teamContext = 'AU Team';
+      shiftDescription = 'Start of AU shift (00:00 UK time)';
+    } else if (currentHour === 16) {
+      // 16:00 UK time - US team shift start
+      teamContext = 'US Team';
+      shiftDescription = 'Start of US shift (16:00 UK time)';
+    } else if (currentHour === ukTimes.endHour) {
+      // Variable UK end time (15:00 BST / 16:00 GMT) - UK team shift end
+      teamContext = 'UK Team';
+      shiftDescription = `End of UK shift (${ukTimes.endHour}:00 ${ukTimes.timezone})`;
+    } else {
+      // Unexpected trigger time - log and continue anyway
+      teamContext = 'Unknown Team';
+      shiftDescription = `Unexpected trigger time: ${currentHour}:00 UK time`;
+      console.log(`⚠️ ${shiftDescription}`);
+    }
+    
+    console.log(`📅 ${teamContext} shift handover: ${shiftDescription}`);
+    console.log(`🌍 Current UK DST status: ${ukTimes.isDST ? 'Active (BST)' : 'Inactive (GMT)'}`);
+    console.log(`📅 Day of week: ${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dayOfWeek]}`);
+    
+    // Run the missing fields check with team context
+    console.log(`🚀 Running missing fields check for ${teamContext}...`);
+    runMissingFieldsCheck();
+    
+    // Log the global team execution
+    logGlobalTeamExecution(teamContext, shiftDescription, ukTimes);
+    
+    console.log(`✅ Global team automated check completed for ${teamContext}`);
+    
+  } catch (error) {
+    console.error('❌ Global team automated check failed:', error.toString());
+    console.error('Stack trace:', error.stack);
+    
+    // Log the failure
+    try {
+      logGlobalTeamExecution('Error', `Failed: ${error.toString()}`, getUKShiftTimes());
+    } catch (logError) {
+      console.error('❌ Failed to log global team execution error:', logError.toString());
+    }
+    
+    throw error;
+  }
+}
+
+/**
+ * Log global team execution details
+ */
+function logGlobalTeamExecution(teamContext, shiftDescription, ukTimes) {
+  console.log('📝 Logging global team execution...');
+  
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Logs');
+    
+    if (!sheet) {
+      console.log('⚠️ Logs sheet not found, skipping global team execution logging');
+      return;
+    }
+    
+    const timestamp = new Date();
+    const executionData = [
+      timestamp.toISOString(),
+      timestamp.toLocaleDateString(),
+      timestamp.toLocaleTimeString(),
+      'Global Team Check', // Different from regular daily checks
+      teamContext,
+      shiftDescription,
+      `DST: ${ukTimes.isDST ? 'Active (BST)' : 'Inactive (GMT)'}`,
+      'Success'
+    ];
+    
+    // Add headers if sheet is empty or update headers for global team logging
+    if (sheet.getLastRow() === 0) {
+      const headers = [
+        'Timestamp',
+        'Date',
+        'Time',
+        'Check Type',
+        'Team Context',
+        'Shift Description',
+        'DST Status',
+        'Status'
+      ];
+      sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+      
+      // Format headers
+      const headerRange = sheet.getRange(1, 1, 1, headers.length);
+      headerRange.setBackground('#4285f4')
+                 .setFontColor('#ffffff')
+                 .setFontWeight('bold')
+                 .setHorizontalAlignment('center');
+    }
+    
+    // Add execution log
+    const startRow = sheet.getLastRow() + 1;
+    sheet.getRange(startRow, 1, 1, executionData.length).setValues([executionData]);
+    
+    console.log(`✅ Global team execution logged: ${teamContext} - ${shiftDescription}`);
+    
+  } catch (error) {
+    console.error('❌ Failed to log global team execution:', error.toString());
+  }
+}
+
+/**
  * Test function to update summary sheet with sample data - FIXED VERSION
  */
 function testSummaryUpdate() {

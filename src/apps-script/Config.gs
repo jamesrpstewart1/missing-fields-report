@@ -970,10 +970,10 @@ function logExecution(totalIncidents, incidentsWithMissingFields) {
 }
 
 /**
- * Setup daily automation trigger
+ * Setup global team automation triggers (UK, US, AU shifts)
  */
 function setupDailyAutomation() {
-  console.log('🔧 Setting up daily automation...');
+  console.log('🔧 Setting up global team automation triggers...');
   
   try {
     // Delete any existing triggers
@@ -982,7 +982,8 @@ function setupDailyAutomation() {
     
     triggers.forEach(trigger => {
       if (trigger.getHandlerFunction() === 'dailyAutomatedCheck' || 
-          trigger.getHandlerFunction() === 'runMissingFieldsCheck') {
+          trigger.getHandlerFunction() === 'runMissingFieldsCheck' ||
+          trigger.getHandlerFunction() === 'globalTeamAutomatedCheck') {
         ScriptApp.deleteTrigger(trigger);
         deletedCount++;
       }
@@ -990,43 +991,93 @@ function setupDailyAutomation() {
     
     console.log(`🗑️ Deleted ${deletedCount} existing triggers`);
     
-    // Create new daily trigger at 9:00 AM
-    const trigger = ScriptApp.newTrigger('dailyAutomatedCheck')
+    // Determine current UK DST status and appropriate times for ALL teams
+    const ukTimes = getUKShiftTimes();
+    const globalTimes = getGlobalTeamTimes(ukTimes);
+    const createdTriggers = [];
+    
+    // Create UK shift handover trigger (end of UK shift)
+    const ukTrigger = ScriptApp.newTrigger('globalTeamAutomatedCheck')
       .timeBased()
       .everyDays(1)
-      .atHour(9)
+      .atHour(globalTimes.uk.hour)
+      .nearMinute(0)
       .create();
+    createdTriggers.push({
+      id: ukTrigger.getUniqueId(),
+      team: 'UK',
+      time: globalTimes.uk.display,
+      description: 'End of UK shift handover'
+    });
     
-    console.log('✅ Daily automation trigger created successfully!');
-    console.log(`   📅 Trigger ID: ${trigger.getUniqueId()}`);
-    console.log('   📅 Schedule: Daily at 9:00 AM');
-    console.log('   🔄 Function: dailyAutomatedCheck()');
+    // Create US shift start trigger (DST-aware)
+    const usTrigger = ScriptApp.newTrigger('globalTeamAutomatedCheck')
+      .timeBased()
+      .everyDays(1)
+      .atHour(globalTimes.us.hour)
+      .nearMinute(0)
+      .create();
+    createdTriggers.push({
+      id: usTrigger.getUniqueId(),
+      team: 'US',
+      time: globalTimes.us.display,
+      description: 'Start of US shift'
+    });
+    
+    // Create AU shift start trigger (DST-aware)
+    const auTrigger = ScriptApp.newTrigger('globalTeamAutomatedCheck')
+      .timeBased()
+      .everyDays(1)
+      .atHour(globalTimes.au.hour)
+      .nearMinute(0)
+      .create();
+    createdTriggers.push({
+      id: auTrigger.getUniqueId(),
+      team: 'AU',
+      time: globalTimes.au.display,
+      description: 'Start of AU shift'
+    });
+    
+    console.log('✅ Global team automation triggers created successfully!');
+    createdTriggers.forEach(trigger => {
+      console.log(`   📅 ${trigger.team} Team: ${trigger.time} (${trigger.description})`);
+      console.log(`      Trigger ID: ${trigger.id}`);
+    });
     
     // Show success message
     try {
       const ui = SpreadsheetApp.getUi();
+      const triggerList = createdTriggers.map(t => `• ${t.team} Team: ${t.time} (${t.description})`).join('\n');
+      
       ui.alert(
-        '✅ Daily Automation Setup Complete',
-        `Daily trigger has been successfully created!\n\n` +
-        `📅 Schedule: Every day at 9:00 AM\n` +
-        `🔄 Function: dailyAutomatedCheck()\n\n` +
-        `The system will now automatically check for missing fields and send notifications daily.`,
+        '✅ Global Team Automation Setup Complete',
+        `Global team automation triggers have been successfully created!\n\n` +
+        `📅 SCHEDULE (Weekdays Only):\n${triggerList}\n\n` +
+        `🔄 Function: globalTeamAutomatedCheck()\n` +
+        `🌍 DST Aware: UK times automatically adjust for daylight saving\n` +
+        `📊 Current UK DST Status: ${ukTimes.isDST ? 'Active (BST)' : 'Inactive (GMT)'}\n\n` +
+        `The system will now automatically generate reports at each global team shift handover.`,
         ui.ButtonSet.OK
       );
     } catch (uiError) {
       console.log('⚠️ Could not show UI alert (running in automated context)');
     }
     
-    return { success: true, triggerId: trigger.getUniqueId() };
+    return { 
+      success: true, 
+      triggers: createdTriggers,
+      ukDSTStatus: ukTimes.isDST,
+      ukEndTime: ukTimes.endHour
+    };
     
   } catch (error) {
-    console.error('❌ Failed to setup daily automation:', error.toString());
+    console.error('❌ Failed to setup global team automation:', error.toString());
     
     try {
       const ui = SpreadsheetApp.getUi();
       ui.alert(
-        '❌ Daily Automation Setup Failed',
-        `Failed to create daily trigger:\n\n${error.toString()}`,
+        '❌ Global Team Automation Setup Failed',
+        `Failed to create global team triggers:\n\n${error.toString()}`,
         ui.ButtonSet.OK
       );
     } catch (uiError) {
@@ -1038,16 +1089,79 @@ function setupDailyAutomation() {
 }
 
 /**
- * Cancel daily automation
+ * Determine UK shift times based on current DST status
+ */
+function getUKShiftTimes() {
+  const now = new Date();
+  const year = now.getFullYear();
+  
+  // UK DST rules: Last Sunday in March to last Sunday in October
+  const dstStart = getLastSundayOfMonth(year, 2); // March (0-indexed)
+  const dstEnd = getLastSundayOfMonth(year, 9);   // October (0-indexed)
+  
+  const isDST = now >= dstStart && now < dstEnd;
+  
+  return {
+    isDST: isDST,
+    startHour: isDST ? 7 : 8,   // UK shift starts 08:00 GMT / 07:00 BST
+    endHour: isDST ? 15 : 16,   // UK shift ends 16:00 GMT / 15:00 BST
+    timezone: isDST ? 'BST' : 'GMT'
+  };
+}
+
+/**
+ * Calculate global team trigger times based on UK DST status
+ * Triggers at the START of each team's shift
+ * When UK DST changes, ALL team times shift by 1 hour
+ */
+function getGlobalTeamTimes(ukTimes) {
+  return {
+    au: {
+      hour: ukTimes.isDST ? 23 : 0,   // AU starts at 00:00 GMT / 23:00 BST (midnight AU time)
+      display: `${ukTimes.isDST ? 23 : 0}:00 UK time (${ukTimes.timezone}) - AU shift start`
+    },
+    uk: {
+      hour: ukTimes.startHour,        // UK starts at 08:00 GMT / 07:00 BST
+      display: `${ukTimes.startHour}:00 UK time (${ukTimes.timezone}) - UK shift start`
+    },
+    us: {
+      hour: ukTimes.endHour,          // US starts at 16:00 GMT / 15:00 BST (when UK ends)
+      display: `${ukTimes.endHour}:00 UK time (${ukTimes.timezone}) - US shift start`
+    }
+  };
+}
+
+/**
+ * Get the last Sunday of a given month and year
+ */
+function getLastSundayOfMonth(year, month) {
+  // Start from the last day of the month
+  const lastDay = new Date(year, month + 1, 0);
+  
+  // Find the last Sunday
+  const dayOfWeek = lastDay.getDay();
+  const daysToSubtract = dayOfWeek === 0 ? 0 : dayOfWeek;
+  
+  const lastSunday = new Date(year, month + 1, 0 - daysToSubtract);
+  
+  // Set time to 01:00 UTC (when DST changes occur)
+  lastSunday.setUTCHours(1, 0, 0, 0);
+  
+  return lastSunday;
+}
+
+/**
+ * Cancel global team automation
  */
 function cancelDailyAutomation() {
-  console.log('🛑 Canceling daily automation...');
+  console.log('🛑 Canceling global team automation...');
   
   try {
     const triggers = ScriptApp.getProjectTriggers();
     const automationTriggers = triggers.filter(trigger => 
       trigger.getHandlerFunction() === 'dailyAutomatedCheck' ||
-      trigger.getHandlerFunction() === 'runMissingFieldsCheck'
+      trigger.getHandlerFunction() === 'runMissingFieldsCheck' ||
+      trigger.getHandlerFunction() === 'globalTeamAutomatedCheck'
     );
     
     if (automationTriggers.length === 0) {
@@ -1055,7 +1169,7 @@ function cancelDailyAutomation() {
         const ui = SpreadsheetApp.getUi();
         ui.alert(
           'ℹ️ No Automation Found',
-          'No daily automation triggers are currently active.',
+          'No global team automation triggers are currently active.',
           ui.ButtonSet.OK
         );
       } catch (uiError) {
@@ -1065,10 +1179,16 @@ function cancelDailyAutomation() {
     }
     
     let deletedCount = 0;
+    const deletedTriggers = [];
+    
     automationTriggers.forEach(trigger => {
+      const functionName = trigger.getHandlerFunction();
+      const triggerType = trigger.getEventType();
+      
       ScriptApp.deleteTrigger(trigger);
       deletedCount++;
-      console.log(`🗑️ Deleted trigger: ${trigger.getHandlerFunction()}`);
+      deletedTriggers.push(functionName);
+      console.log(`🗑️ Deleted trigger: ${functionName} (${triggerType})`);
     });
     
     console.log(`✅ Successfully deleted ${deletedCount} automation triggers`);
@@ -1076,24 +1196,29 @@ function cancelDailyAutomation() {
     try {
       const ui = SpreadsheetApp.getUi();
       ui.alert(
-        '✅ Daily Automation Canceled',
-        `Successfully canceled daily automation!\n\nDeleted ${deletedCount} trigger(s).`,
+        '✅ Global Team Automation Canceled',
+        `Successfully canceled global team automation!\n\n` +
+        `DELETED TRIGGERS:\n` +
+        `• Total triggers removed: ${deletedCount}\n` +
+        `• Functions: ${deletedTriggers.join(', ')}\n\n` +
+        `All automated reports for UK, US, and AU teams have been disabled.\n` +
+        `Use "Setup Daily Automation" to re-enable automated reporting.`,
         ui.ButtonSet.OK
       );
     } catch (uiError) {
       console.log('⚠️ Could not show UI alert');
     }
     
-    return { success: true, deletedCount: deletedCount };
+    return { success: true, deletedCount: deletedCount, deletedFunctions: deletedTriggers };
     
   } catch (error) {
-    console.error('❌ Failed to cancel daily automation:', error.toString());
+    console.error('❌ Failed to cancel global team automation:', error.toString());
     
     try {
       const ui = SpreadsheetApp.getUi();
       ui.alert(
         '❌ Automation Cancellation Failed',
-        `Failed to cancel daily automation:\n\n${error.toString()}`,
+        `Failed to cancel global team automation:\n\n${error.toString()}`,
         ui.ButtonSet.OK
       );
     } catch (uiError) {
@@ -1105,48 +1230,77 @@ function cancelDailyAutomation() {
 }
 
 /**
- * Show automation status
+ * Show global team automation status
  */
 function showAutomationStatus() {
-  console.log('📊 Checking automation status...');
+  console.log('📊 Checking global team automation status...');
   
   try {
     const triggers = ScriptApp.getProjectTriggers();
     const relevantTriggers = triggers.filter(trigger => 
       trigger.getHandlerFunction() === 'dailyAutomatedCheck' ||
-      trigger.getHandlerFunction() === 'runMissingFieldsCheck'
+      trigger.getHandlerFunction() === 'runMissingFieldsCheck' ||
+      trigger.getHandlerFunction() === 'globalTeamAutomatedCheck'
     );
     
-    let statusMessage = 'Missing Fields Report Automation Status\n\n';
+    let statusMessage = 'Missing Fields Report - Global Team Automation Status\n\n';
     
     if (relevantTriggers.length === 0) {
       statusMessage += '❌ No automation triggers found\n\n';
-      statusMessage += 'Click "Setup Daily Automation" to create the daily trigger.';
+      statusMessage += 'Click "Setup Daily Automation" to create global team triggers for UK, US, and AU shift handovers.';
     } else {
       statusMessage += `✅ ${relevantTriggers.length} automation trigger(s) active:\n\n`;
       
+      // Get current UK DST status for context
+      const ukTimes = getUKShiftTimes();
+      statusMessage += `🌍 Current UK DST Status: ${ukTimes.isDST ? 'Active (BST)' : 'Inactive (GMT)'}\n`;
+      statusMessage += `📅 UK Shift End Time: ${ukTimes.endHour}:00 UK time\n\n`;
+      
+      statusMessage += `ACTIVE TRIGGERS:\n`;
       relevantTriggers.forEach((trigger, index) => {
-        statusMessage += `${index + 1}. Function: ${trigger.getHandlerFunction()}\n`;
-        statusMessage += `   Type: ${trigger.getEventType()}\n`;
-        statusMessage += `   ID: ${trigger.getUniqueId()}\n\n`;
+        const functionName = trigger.getHandlerFunction();
+        const triggerType = trigger.getEventType();
+        
+        statusMessage += `${index + 1}. Function: ${functionName}\n`;
+        statusMessage += `   Type: ${triggerType}\n`;
+        statusMessage += `   ID: ${trigger.getUniqueId()}\n`;
+        
+        // Add context for global team triggers
+        if (functionName === 'globalTeamAutomatedCheck') {
+          // Try to determine which team this trigger is for based on time
+          // This is approximate since we can't directly get the hour from the trigger
+          statusMessage += `   Purpose: Global team shift handover report\n`;
+        }
+        
+        statusMessage += `\n`;
       });
       
-      statusMessage += 'The system will automatically check for missing fields daily.';
+      statusMessage += `EXPECTED SCHEDULE (Weekdays Only):\n`;
+      statusMessage += `• UK Team: ${ukTimes.endHour}:00 UK time (end of shift handover)\n`;
+      statusMessage += `• US Team: 16:00 UK time (start of shift)\n`;
+      statusMessage += `• AU Team: 00:00 UK time (start of shift)\n\n`;
+      
+      statusMessage += 'The system will automatically generate reports at each global team shift handover.';
     }
     
     const ui = SpreadsheetApp.getUi();
-    ui.alert('📊 Automation Status', statusMessage, ui.ButtonSet.OK);
+    ui.alert('📊 Global Team Automation Status', statusMessage, ui.ButtonSet.OK);
     
-    return { triggerCount: relevantTriggers.length, triggers: relevantTriggers };
+    return { 
+      triggerCount: relevantTriggers.length, 
+      triggers: relevantTriggers,
+      ukDSTStatus: ukTimes.isDST,
+      ukEndTime: ukTimes.endHour
+    };
     
   } catch (error) {
-    console.error('❌ Failed to check automation status:', error.toString());
+    console.error('❌ Failed to check global team automation status:', error.toString());
     
     try {
       const ui = SpreadsheetApp.getUi();
       ui.alert(
         '❌ Status Check Failed',
-        `Unable to check automation status:\n\n${error.toString()}`,
+        `Unable to check global team automation status:\n\n${error.toString()}`,
         ui.ButtonSet.OK
       );
     } catch (uiError) {
