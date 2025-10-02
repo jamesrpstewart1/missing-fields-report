@@ -128,6 +128,136 @@ function createCustomMenu() {
 }
 
 /**
+ * Quick fix for configuration issues
+ */
+function quickFixConfiguration() {
+  console.log('🔧 Applying quick configuration fixes...');
+  
+  try {
+    const configSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Config');
+    
+    if (!configSheet) {
+      console.log('❌ No Config sheet found');
+      return;
+    }
+    
+    const data = configSheet.getDataRange().getValues();
+    let fixesApplied = [];
+    
+    // Find and fix includeInternalImpact
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] === 'includeInternalImpact') {
+        const currentValue = data[i][1];
+        configSheet.getRange(i + 1, 2).setValue(false);
+        fixesApplied.push(`includeInternalImpact: ${currentValue} → false`);
+        console.log(`✅ Fixed includeInternalImpact: ${currentValue} → false`);
+        break;
+      }
+    }
+    
+    // Find and fix enableSeverityFiltering (disable it to test)
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] === 'enableSeverityFiltering') {
+        const currentValue = data[i][1];
+        configSheet.getRange(i + 1, 2).setValue(false);
+        fixesApplied.push(`enableSeverityFiltering: ${currentValue} → false`);
+        console.log(`✅ Fixed enableSeverityFiltering: ${currentValue} → false`);
+        break;
+      }
+    }
+    
+    // Test the fixes
+    console.log('🧪 Testing fixes...');
+    const config = getConfiguration();
+    console.log(`   New includeInternalImpact: ${config.includeInternalImpact}`);
+    console.log(`   New enableSeverityFiltering: ${config.enableSeverityFiltering}`);
+    console.log(`   businessUnits: ${JSON.stringify(config.businessUnits)}`);
+    
+    console.log(`✅ Applied ${fixesApplied.length} fixes:`, fixesApplied);
+    
+  } catch (error) {
+    console.error('❌ Quick fix failed:', error.toString());
+  }
+}
+
+/**
+ * Debug function to check configuration parsing
+ */
+function debugConfiguration() {
+  console.log('🔍 DEBUGGING CONFIGURATION...');
+  
+  // Step 1: Check raw Config sheet data
+  console.log('📋 Step 1: Checking raw Config sheet data...');
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Config');
+    if (sheet) {
+      const data = sheet.getDataRange().getValues();
+      console.log('📊 Raw Config sheet data:');
+      data.forEach((row, index) => {
+        if (index === 0) {
+          console.log(`   Headers: ${row.join(', ')}`);
+        } else if (row[0] && row[1] !== undefined) {
+          console.log(`   ${row[0]}: "${row[1]}" (type: ${typeof row[1]})`);
+          if (row[0] === 'includeInternalImpact') {
+            console.log(`   🎯 FOUND includeInternalImpact RAW VALUE: "${row[1]}" (type: ${typeof row[1]})`);
+          }
+        }
+      });
+    } else {
+      console.log('   ❌ No Config sheet found');
+    }
+  } catch (error) {
+    console.log(`   ❌ Error reading Config sheet: ${error.toString()}`);
+  }
+  
+  // Step 2: Test parseConfigValue function directly
+  console.log('📋 Step 2: Testing parseConfigValue function...');
+  console.log(`   parseConfigValue('TRUE'): ${parseConfigValue('TRUE')} (type: ${typeof parseConfigValue('TRUE')})`);
+  console.log(`   parseConfigValue('FALSE'): ${parseConfigValue('FALSE')} (type: ${typeof parseConfigValue('FALSE')})`);
+  console.log(`   parseConfigValue('true'): ${parseConfigValue('true')} (type: ${typeof parseConfigValue('true')})`);
+  console.log(`   parseConfigValue('false'): ${parseConfigValue('false')} (type: ${typeof parseConfigValue('false')})`);
+  console.log(`   parseConfigValue(true): ${parseConfigValue(true)} (type: ${typeof parseConfigValue(true)})`);
+  console.log(`   parseConfigValue(false): ${parseConfigValue(false)} (type: ${typeof parseConfigValue(false)})`);
+  
+  // Step 3: Check default configuration
+  console.log('📋 Step 3: Checking default configuration...');
+  const defaultConfig = getDefaultConfiguration();
+  console.log(`   Default includeInternalImpact: ${defaultConfig.includeInternalImpact} (type: ${typeof defaultConfig.includeInternalImpact})`);
+  
+  // Step 4: Check full configuration
+  console.log('📋 Step 4: Checking full getConfiguration() result...');
+  const config = getConfiguration();
+  console.log(`   Final includeInternalImpact: ${config.includeInternalImpact} (type: ${typeof config.includeInternalImpact})`);
+  console.log(`   Final businessUnits: ${JSON.stringify(config.businessUnits)} (type: ${typeof config.businessUnits})`);
+  
+  // Test the boolean logic
+  console.log('📋 Step 5: Boolean logic tests:');
+  console.log(`   config.includeInternalImpact === true: ${config.includeInternalImpact === true}`);
+  console.log(`   config.includeInternalImpact === false: ${config.includeInternalImpact === false}`);
+  console.log(`   config.includeInternalImpact !== false: ${config.includeInternalImpact !== false}`);
+  
+  // Test business units
+  if (Array.isArray(config.businessUnits)) {
+    console.log(`   businessUnits.includes('afterpay'): ${config.businessUnits.includes('afterpay')}`);
+    console.log(`   businessUnits array: [${config.businessUnits.join(', ')}]`);
+  } else {
+    console.log(`   businessUnits is not an array: ${config.businessUnits}`);
+  }
+  
+  const ui = SpreadsheetApp.getUi();
+  ui.alert(
+    '🔍 Configuration Debug Complete',
+    `DETAILED ANALYSIS COMPLETE:\n\n` +
+    `Key findings:\n` +
+    `• includeInternalImpact: ${config.includeInternalImpact} (${typeof config.includeInternalImpact})\n` +
+    `• businessUnits: ${JSON.stringify(config.businessUnits)}\n\n` +
+    `Check the Apps Script logs (View > Logs) for detailed step-by-step analysis.\n\n` +
+    `This will show exactly where the configuration parsing issue is occurring.`,
+    ui.ButtonSet.OK
+  );
+}
+
+/**
  * Main function - Daily missing fields check
  */
 function runMissingFieldsCheck() {
@@ -137,17 +267,37 @@ function runMissingFieldsCheck() {
     // Get configuration from Google Sheets
     const config = getConfiguration();
     
-    // Fetch incidents from all platforms
+    // Fetch incidents from configured business units only
     const allIncidents = [];
+    const configuredBusinessUnits = config.businessUnits || ['square', 'cash', 'afterpay'];
     
-    // incident.io - Square and Cash
-    const squareIncidents = fetchIncidentsFromIncidentIO('square', config);
-    const cashIncidents = fetchIncidentsFromIncidentIO('cash', config);
+    console.log(`📋 Configured business units: ${configuredBusinessUnits.join(', ')}`);
     
-    // FireHydrant - Afterpay
-    const afterpayIncidents = fetchIncidentsFromFireHydrant('afterpay', config);
+    // Fetch from incident.io platforms (Square and Cash)
+    if (configuredBusinessUnits.includes('square')) {
+      console.log('📡 Fetching Square incidents...');
+      const squareIncidents = fetchIncidentsFromIncidentIO('square', config);
+      allIncidents.push(...squareIncidents);
+    } else {
+      console.log('⏭️ Skipping Square (not in configured business units)');
+    }
     
-    allIncidents.push(...squareIncidents, ...cashIncidents, ...afterpayIncidents);
+    if (configuredBusinessUnits.includes('cash')) {
+      console.log('📡 Fetching Cash incidents...');
+      const cashIncidents = fetchIncidentsFromIncidentIO('cash', config);
+      allIncidents.push(...cashIncidents);
+    } else {
+      console.log('⏭️ Skipping Cash (not in configured business units)');
+    }
+    
+    // Fetch from FireHydrant platform (Afterpay)
+    if (configuredBusinessUnits.includes('afterpay')) {
+      console.log('📡 Fetching Afterpay incidents...');
+      const afterpayIncidents = fetchIncidentsFromFireHydrant('afterpay', config);
+      allIncidents.push(...afterpayIncidents);
+    } else {
+      console.log('⏭️ Skipping Afterpay (not in configured business units)');
+    }
     
     console.log(`📊 Total incidents fetched: ${allIncidents.length}`);
     
@@ -247,7 +397,7 @@ function testSummaryUpdate() {
       `Expected Results:\n` +
       `• Total Incidents: ${totalIncidentsProcessed}\n` +
       `• Missing Fields: ${incidentsWithMissingFields.length} (${((incidentsWithMissingFields.length / totalIncidentsProcessed) * 100).toFixed(1)}%)\n` +
-      `• Business Unit Total: ${incidentsWithMissingFields.length}\n\n` +
+      `• Brand Total: ${incidentsWithMissingFields.length}\n\n` +
       `Check the Summary tab to verify the fix worked!`,
       ui.ButtonSet.OK
     );
@@ -336,7 +486,7 @@ function debugSummarySheet() {
     
     // Check business unit total
     const businessUnitTotal = sheet.getRange('F17').getValue(); // TOTAL row, Total column
-    console.log(`   Business Unit Total: ${businessUnitTotal}`);
+    console.log(`   Brand Total: ${businessUnitTotal}`);
     
     const ui = SpreadsheetApp.getUi();
     ui.alert(
@@ -344,7 +494,7 @@ function debugSummarySheet() {
       `Current Summary Values:\n\n` +
       `• Total Incidents (A5): ${totalIncidentsCell}\n` +
       `• Missing Fields (D5): ${missingFieldsCell}\n` +
-      `• Business Unit Total: ${businessUnitTotal}\n\n` +
+      `• Brand Total: ${businessUnitTotal}\n\n` +
       `Check the console logs for more details.`,
       ui.ButtonSet.OK
     );
@@ -427,10 +577,10 @@ function debugBusinessUnitAnalysis() {
     
     // Find business unit column
     const businessUnitColIndex = headers.findIndex(h => h.toLowerCase().includes('business unit'));
-    console.log(`   Business Unit column index: ${businessUnitColIndex}`);
+    console.log(`   Brand column index: ${businessUnitColIndex}`);
     
     if (businessUnitColIndex === -1) {
-      throw new Error('Business Unit column not found in tracking sheet');
+      throw new Error('Brand column not found in tracking sheet');
     }
     
     // Count by business unit
@@ -1490,17 +1640,37 @@ function runMissingFieldsCheckWithDateRange(startDate, endDate, rangeType) {
     console.log(`📅 Start: ${startDate.toISOString()}`);
     console.log(`📅 End: ${endDate.toISOString()}`);
     
-    // Fetch incidents from all platforms with date filtering
+    // Fetch incidents from configured business units only with date filtering
     const allIncidents = [];
+    const configuredBusinessUnits = config.businessUnits || ['square', 'cash', 'afterpay'];
     
-    // incident.io - Square and Cash
-    const squareIncidents = fetchIncidentsFromIncidentIOWithDateRange('square', config);
-    const cashIncidents = fetchIncidentsFromIncidentIOWithDateRange('cash', config);
+    console.log(`📋 Configured business units for date range: ${configuredBusinessUnits.join(', ')}`);
     
-    // FireHydrant - Afterpay
-    const afterpayIncidents = fetchIncidentsFromFireHydrantWithDateRange('afterpay', config);
+    // Fetch from incident.io platforms (Square and Cash)
+    if (configuredBusinessUnits.includes('square')) {
+      console.log('📡 Fetching Square incidents for date range...');
+      const squareIncidents = fetchIncidentsFromIncidentIOWithDateRange('square', config);
+      allIncidents.push(...squareIncidents);
+    } else {
+      console.log('⏭️ Skipping Square for date range (not in configured business units)');
+    }
     
-    allIncidents.push(...squareIncidents, ...cashIncidents, ...afterpayIncidents);
+    if (configuredBusinessUnits.includes('cash')) {
+      console.log('📡 Fetching Cash incidents for date range...');
+      const cashIncidents = fetchIncidentsFromIncidentIOWithDateRange('cash', config);
+      allIncidents.push(...cashIncidents);
+    } else {
+      console.log('⏭️ Skipping Cash for date range (not in configured business units)');
+    }
+    
+    // Fetch from FireHydrant platform (Afterpay)
+    if (configuredBusinessUnits.includes('afterpay')) {
+      console.log('📡 Fetching Afterpay incidents for date range...');
+      const afterpayIncidents = fetchIncidentsFromFireHydrantWithDateRange('afterpay', config);
+      allIncidents.push(...afterpayIncidents);
+    } else {
+      console.log('⏭️ Skipping Afterpay for date range (not in configured business units)');
+    }
     
     console.log(`📊 Total incidents fetched for date range: ${allIncidents.length}`);
     
@@ -1604,17 +1774,37 @@ function runWeeklySummaryReport() {
     config.startDate = startDate;
     config.endDate = endDate;
     
-    // Fetch incidents from all platforms for the past week using WEEKLY filtering
+    // Fetch incidents from configured business units only for the past week using WEEKLY filtering
     const allIncidents = [];
+    const configuredBusinessUnits = config.businessUnits || ['square', 'cash', 'afterpay'];
     
-    // incident.io - Square and Cash (using daily functions with weekly date range)
-    const squareIncidents = fetchIncidentsFromIncidentIOWithDateRange('square', config);
-    const cashIncidents = fetchIncidentsFromIncidentIOWithDateRange('cash', config);
+    console.log(`📋 Configured business units for weekly report: ${configuredBusinessUnits.join(', ')}`);
     
-    // FireHydrant - Afterpay (using daily functions with weekly date range)
-    const afterpayIncidents = fetchIncidentsFromFireHydrantWithDateRange('afterpay', config);
+    // Fetch from incident.io platforms (Square and Cash)
+    if (configuredBusinessUnits.includes('square')) {
+      console.log('📡 Fetching Square incidents for weekly report...');
+      const squareIncidents = fetchIncidentsFromIncidentIOWithDateRange('square', config);
+      allIncidents.push(...squareIncidents);
+    } else {
+      console.log('⏭️ Skipping Square for weekly report (not in configured business units)');
+    }
     
-    allIncidents.push(...squareIncidents, ...cashIncidents, ...afterpayIncidents);
+    if (configuredBusinessUnits.includes('cash')) {
+      console.log('📡 Fetching Cash incidents for weekly report...');
+      const cashIncidents = fetchIncidentsFromIncidentIOWithDateRange('cash', config);
+      allIncidents.push(...cashIncidents);
+    } else {
+      console.log('⏭️ Skipping Cash for weekly report (not in configured business units)');
+    }
+    
+    // Fetch from FireHydrant platform (Afterpay)
+    if (configuredBusinessUnits.includes('afterpay')) {
+      console.log('📡 Fetching Afterpay incidents for weekly report...');
+      const afterpayIncidents = fetchIncidentsFromFireHydrantWithDateRange('afterpay', config);
+      allIncidents.push(...afterpayIncidents);
+    } else {
+      console.log('⏭️ Skipping Afterpay for weekly report (not in configured business units)');
+    }
     
     console.log(`📊 Total incidents opened this week: ${allIncidents.length}`);
     
@@ -2117,31 +2307,36 @@ function buildWeeklySummaryEmailContent(weeklySummary, config) {
   const startDate = weeklySummary.startDate.toLocaleDateString();
   const endDate = weeklySummary.endDate.toLocaleDateString();
   
-  // Build business unit rows
+  // Build business unit rows - only show configured business units
   let businessUnitRows = '';
+  const configuredBusinessUnits = config.businessUnits || ['square', 'cash', 'afterpay'];
+  
   Object.entries(weeklySummary.businessUnitBreakdown).forEach(([unit, data]) => {
-    const unitColor = unit === 'Square' ? '#1f77b4' : 
-                     unit === 'Cash' ? '#ff7f0e' : '#2ca02c';
-    
-    businessUnitRows += `
-      <tr>
-        <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; color: ${unitColor};">
-          ${unit}
-        </td>
-        <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">
-          ${data.total}
-        </td>
-        <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: #28a745;">
-          ${data.complete}
-        </td>
-        <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: #dc3545;">
-          ${data.incomplete}
-        </td>
-        <td style="padding: 8px; border: 1px solid #ddd; text-align: center; font-weight: bold;">
-          ${data.completionPercentage}%
-        </td>
-      </tr>
-    `;
+    // Only show business units that are configured AND have data
+    if (configuredBusinessUnits.includes(unit.toLowerCase()) && data.total > 0) {
+      const unitColor = unit === 'Square' ? '#1f77b4' : 
+                       unit === 'Cash' ? '#ff7f0e' : '#2ca02c';
+      
+      businessUnitRows += `
+        <tr>
+          <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; color: ${unitColor};">
+            ${unit}
+          </td>
+          <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">
+            ${data.total}
+          </td>
+          <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: #28a745;">
+            ${data.complete}
+          </td>
+          <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: #dc3545;">
+            ${data.incomplete}
+          </td>
+          <td style="padding: 8px; border: 1px solid #ddd; text-align: center; font-weight: bold;">
+            ${data.completionPercentage}%
+          </td>
+        </tr>
+      `;
+    }
   });
   
   // Build severity breakdown rows
@@ -2476,7 +2671,11 @@ function buildWeeklySummaryEmailContent(weeklySummary, config) {
                 </tr>
               </thead>
               <tbody>
-                ${['Square', 'Cash', 'Afterpay'].map(unit => {
+                ${['Square', 'Cash', 'Afterpay'].filter(unit => 
+                  configuredBusinessUnits.includes(unit.toLowerCase()) && 
+                  weeklySummary.businessUnitBreakdown[unit] && 
+                  weeklySummary.businessUnitBreakdown[unit].total > 0
+                ).map(unit => {
                   const unitColor = unit === 'Square' ? '#1f77b4' : 
                                    unit === 'Cash' ? '#ff7f0e' : '#2ca02c';
                   

@@ -31,7 +31,7 @@ function fetchIncidentsFromIncidentIO(businessUnit, config) {
   // Check if severity filtering is enabled
   const severityFilteringEnabled = config.enableSeverityFiltering || false;
   const allowedSeverities = config.incidentioSeverities || ['SEV0', 'SEV1', 'SEV2', 'SEV3', 'SEV4'];
-  const includeInternalImpact = config.includeInternalImpact !== false; // Default to true
+  const includeInternalImpact = config.includeInternalImpact === true; // Respect the actual config value
   
   if (severityFilteringEnabled) {
     console.log(`   🔍 Severity filtering enabled - Including: ${allowedSeverities.join(', ')}`);
@@ -742,7 +742,7 @@ function fetchIncidentsFromIncidentIOWithDateRange(businessUnit, config) {
   // Check if severity filtering is enabled
   const severityFilteringEnabled = config.enableSeverityFiltering || false;
   const allowedSeverities = config.incidentioSeverities || ['SEV0', 'SEV1', 'SEV2', 'SEV3', 'SEV4'];
-  const includeInternalImpact = config.includeInternalImpact !== false; // Default to true
+  const includeInternalImpact = config.includeInternalImpact === true; // Respect the actual config value
   
   if (severityFilteringEnabled) {
     console.log(`   🔍 Severity filtering enabled - Including: ${allowedSeverities.join(', ')}`);
@@ -796,6 +796,18 @@ function fetchIncidentsFromIncidentIOWithDateRange(businessUnit, config) {
         slackUrl: getIncidentIOSlackUrl(incident),
         dateRangeType: config.dateRangeType || 'custom' // Mark as custom range result
       }));
+      
+      // Apply weekly status filtering if this is a weekly report
+      if (config.dateRangeType === 'weekly_summary') {
+        const beforeStatusFilter = enrichedIncidents.length;
+        enrichedIncidents = enrichedIncidents.filter(incident => {
+          const status = incident.incident_status?.name || incident.status || '';
+          // For weekly reports, EXCLUDE these statuses
+          const shouldExclude = INCIDENT_FILTERING.excludeStatuses.includes(status);
+          return !shouldExclude;
+        });
+        console.log(`     📊 Weekly status filter (exclude ${INCIDENT_FILTERING.excludeStatuses.join(', ')}): ${beforeStatusFilter} → ${enrichedIncidents.length} incidents`);
+      }
       
       // Apply severity filtering if enabled
       if (severityFilteringEnabled) {
@@ -909,6 +921,18 @@ function fetchIncidentsFromFireHydrantWithDateRange(businessUnit, config) {
           slackUrl: getFireHydrantSlackUrl(incident),
           dateRangeType: config.dateRangeType || 'custom' // Mark as custom range result
         }));
+      
+      // Apply weekly status filtering if this is a weekly report
+      if (config.dateRangeType === 'weekly_summary') {
+        const beforeStatusFilter = filteredIncidents.length;
+        filteredIncidents = filteredIncidents.filter(incident => {
+          const status = incident.status || incident.incident_status?.name || '';
+          // For weekly reports, EXCLUDE these statuses
+          const shouldExclude = INCIDENT_FILTERING.excludeStatuses.includes(status);
+          return !shouldExclude;
+        });
+        console.log(`     📊 Weekly status filter (exclude ${INCIDENT_FILTERING.excludeStatuses.join(', ')}): ${beforeStatusFilter} → ${filteredIncidents.length} incidents`);
+      }
       
       // Apply severity filtering if enabled
       if (severityFilteringEnabled) {

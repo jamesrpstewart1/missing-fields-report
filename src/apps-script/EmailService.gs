@@ -222,8 +222,8 @@ function generateEmailContent(incidentsWithMissingFields, summary, isTest = fals
   });
   html += '</td></tr>';
 
-  // Business unit breakdown
-  html += '<tr><th>By Business Unit</th><td>';
+  // Brand breakdown
+  html += '<tr><th>By Brand</th><td>';
   Object.entries(summary.businessUnitCounts).forEach(([bu, count]) => {
     html += `<span class="platform-badge">${bu}: ${count}</span> `;
   });
@@ -363,7 +363,7 @@ function generateTieredEmailContent(buckets, summary) {
       recentBusinessUnits[bu] = (recentBusinessUnits[bu] || 0) + 1;
     });
     
-    html += `<tr><th>Recent by Business Unit</th><td>`;
+    html += `<tr><th>Recent by Brand</th><td>`;
     Object.entries(recentBusinessUnits).forEach(([bu, count]) => {
       const badgeClass = bu.toLowerCase() === 'square' ? 'badge-square' : 
                         bu.toLowerCase() === 'cash' ? 'badge-cash' : 'badge-afterpay';
@@ -553,7 +553,7 @@ function generatePlainTextContent(incidentsWithMissingFields, summary, isTest = 
     text += `- ${platform}: ${count}\n`;
   });
   
-  text += `\nBy Business Unit:\n`;
+  text += `\nBy Brand:\n`;
   Object.entries(summary.businessUnitCounts).forEach(([bu, count]) => {
     text += `- ${bu}: ${count}\n`;
   });

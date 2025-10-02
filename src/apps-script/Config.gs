@@ -758,64 +758,116 @@ function formatEnhancedSummarySheet(sheet, totalRows) {
   // Format missing field data rows (Rows 22-27) - updated to include new fields
   sheet.getRange('A22:G27').setBorder(true, true, true, true, true, true, '#cccccc', SpreadsheetApp.BorderStyle.SOLID);
   
-  // Format missing field totals row (Row 29) - CORRECTED row number
-  sheet.getRange('A29:G29').setBackground('#f8f9fa')
-                           .setFontWeight('bold')
-                           .setFontSize(12) // Fix: Set font size to 12 to match other total rows
-                           .setFontColor('#000000'); // Ensure text is black and readable
+  // Format missing field totals row - FIND THE ACTUAL TOTAL ROW DYNAMICALLY
+  // Find the missing field TOTAL row by looking for "TOTAL" after the missing field data
+  let missingFieldTotalRow = -1;
+  for (let row = 20; row <= 35; row++) {
+    try {
+      const cellValue = sheet.getRange(row, 1).getValue().toString();
+      if (cellValue === 'TOTAL' && missingFieldTotalRow === -1) {
+        missingFieldTotalRow = row;
+        break;
+      }
+    } catch (e) {
+      // Skip if row doesn't exist
+      continue;
+    }
+  }
   
-  // Format platform section header (Row 31) - CORRECTED ROW NUMBER - FORCE CORRECT FORMATTING
-  const platformHeaderRange = sheet.getRange('A31:H31');
-  platformHeaderRange.clearFormat(); // CLEAR EXISTING FORMATTING FIRST
-  platformHeaderRange.setBackground('#9c27b0')
-                     .setFontColor('#ffffff')
-                     .setFontWeight('bold')
-                     .setFontSize(12) // EXPLICITLY SET TO 12
-                     .setHorizontalAlignment('left'); // FORCE LEFT ALIGNMENT
+  if (missingFieldTotalRow > 0) {
+    console.log(`   Formatting missing field TOTAL row: ${missingFieldTotalRow}`);
+    sheet.getRange(`A${missingFieldTotalRow}:G${missingFieldTotalRow}`)
+         .setBackground('#f8f9fa')
+         .setFontWeight('bold')
+         .setFontSize(12)
+         .setFontColor('#000000')
+         .setHorizontalAlignment('left');
+  }
   
-  // Force the font size and alignment again to ensure it sticks - APPLY MULTIPLE TIMES
-  platformHeaderRange.setFontSize(12);
-  platformHeaderRange.setHorizontalAlignment('left');
+  // Format platform section header - FIND THE ACTUAL PLATFORM HEADER DYNAMICALLY
+  // Find the platform section header by looking for "📈 PLATFORM BREAKDOWN BY DATE BUCKET"
+  let platformHeaderRow = -1;
+  let platformTableHeaderRow = -1;
+  let platformDataStartRow = -1;
+  let platformTotalRow = -1;
   
-  // Apply formatting to the specific cell A31 as well to ensure it overrides any other formatting
-  const platformTitleCell = sheet.getRange('A31');
-  platformTitleCell.setFontSize(12)
-                   .setHorizontalAlignment('left')
-                   .setFontWeight('bold')
-                   .setFontColor('#ffffff')
-                   .setBackground('#9c27b0');
+  for (let row = 20; row <= totalRows; row++) {
+    try {
+      const cellValue = sheet.getRange(row, 1).getValue().toString();
+      
+      if (cellValue.includes('📈 PLATFORM BREAKDOWN BY DATE BUCKET') && platformHeaderRow === -1) {
+        platformHeaderRow = row;
+        console.log(`   Found platform header row: ${row}`);
+      } else if (cellValue === 'Platform' && platformHeaderRow > 0 && platformTableHeaderRow === -1) {
+        platformTableHeaderRow = row;
+        console.log(`   Found platform table header row: ${row}`);
+      } else if (cellValue === 'incident.io' && platformDataStartRow === -1) {
+        platformDataStartRow = row;
+        console.log(`   Found platform data start row: ${row}`);
+      } else if (cellValue === 'TOTAL' && platformDataStartRow > 0 && platformTotalRow === -1) {
+        platformTotalRow = row;
+        console.log(`   Found platform total row: ${row}`);
+      }
+    } catch (e) {
+      // Skip if row doesn't exist
+      continue;
+    }
+  }
   
-  // Format platform table headers (Row 33) - CORRECTED row number
-  sheet.getRange('A33:G33').setBackground('#e8f0fe')
-                           .setFontWeight('bold')
-                           .setHorizontalAlignment('center')
-                           .setBorder(true, true, true, true, true, true, '#4285f4', SpreadsheetApp.BorderStyle.SOLID);
+  // Format platform section header
+  if (platformHeaderRow > 0) {
+    console.log(`   Formatting platform section header: row ${platformHeaderRow}`);
+    const platformHeaderRange = sheet.getRange(`A${platformHeaderRow}:H${platformHeaderRow}`);
+    platformHeaderRange.clearFormat(); // CLEAR EXISTING FORMATTING FIRST
+    platformHeaderRange.setBackground('#9c27b0')
+                       .setFontColor('#ffffff')
+                       .setFontWeight('bold')
+                       .setFontSize(12)
+                       .setHorizontalAlignment('left');
+  }
   
-  // Format platform data rows (Rows 34-36) - CORRECTED row numbers
-  sheet.getRange('A34:G36').setBorder(true, true, true, true, true, true, '#cccccc', SpreadsheetApp.BorderStyle.SOLID);
+  // Format platform table headers
+  if (platformTableHeaderRow > 0) {
+    console.log(`   Formatting platform table headers: row ${platformTableHeaderRow}`);
+    sheet.getRange(`A${platformTableHeaderRow}:G${platformTableHeaderRow}`)
+         .setBackground('#e8f0fe')
+         .setFontWeight('bold')
+         .setHorizontalAlignment('center')
+         .setBorder(true, true, true, true, true, true, '#4285f4', SpreadsheetApp.BorderStyle.SOLID);
+  }
   
-  // CRITICAL FIX: Force correct formatting for individual platform rows (incident.io and FireHydrant)
-  // Clear any existing formatting first, then apply new formatting
-  const incidentioRow = sheet.getRange('A34:G34');
-  incidentioRow.clearFormat(); // Clear existing formatting
-  incidentioRow.setFontWeight('normal')
-               .setFontSize(10) // incident.io row - size 10, not bold
-               .setHorizontalAlignment('left') // Left align
-               .setBorder(true, true, true, true, true, true, '#cccccc', SpreadsheetApp.BorderStyle.SOLID);
-                           
-  const firehydrantRow = sheet.getRange('A35:G35');
-  firehydrantRow.clearFormat(); // Clear existing formatting
-  firehydrantRow.setFontWeight('normal')
-                .setFontSize(10) // FireHydrant row - size 10, not bold  
-                .setHorizontalAlignment('left') // Left align
-                .setBorder(true, true, true, true, true, true, '#cccccc', SpreadsheetApp.BorderStyle.SOLID);
+  // Format platform data rows (incident.io and FireHydrant)
+  if (platformDataStartRow > 0) {
+    console.log(`   Formatting platform data rows starting from: row ${platformDataStartRow}`);
+    
+    // Format incident.io row
+    const incidentioRow = sheet.getRange(`A${platformDataStartRow}:G${platformDataStartRow}`);
+    incidentioRow.clearFormat();
+    incidentioRow.setFontWeight('normal')
+                 .setFontSize(10)
+                 .setHorizontalAlignment('left')
+                 .setBorder(true, true, true, true, true, true, '#cccccc', SpreadsheetApp.BorderStyle.SOLID);
+    
+    // Format FireHydrant row (next row)
+    const firehydrantRow = sheet.getRange(`A${platformDataStartRow + 1}:G${platformDataStartRow + 1}`);
+    firehydrantRow.clearFormat();
+    firehydrantRow.setFontWeight('normal')
+                  .setFontSize(10)
+                  .setHorizontalAlignment('left')
+                  .setBorder(true, true, true, true, true, true, '#cccccc', SpreadsheetApp.BorderStyle.SOLID);
+  }
   
-  // Format platform totals row (Row 36) - CORRECTED row number
-  sheet.getRange('A36:G36').setBackground('#f8f9fa')
-                           .setFontWeight('bold')
-                           .setFontColor('#000000') // Ensure text is black and readable
-                           .setFontSize(12) // Fix: Set font size to 12 to match other total rows
-                           .setHorizontalAlignment('left'); // CHANGE: Left align the total row to match other sections
+  // Format platform totals row
+  if (platformTotalRow > 0) {
+    console.log(`   Formatting platform total row: row ${platformTotalRow}`);
+    sheet.getRange(`A${platformTotalRow}:G${platformTotalRow}`)
+         .setBackground('#f8f9fa')
+         .setFontWeight('bold')
+         .setFontColor('#000000')
+         .setFontSize(12)
+         .setHorizontalAlignment('left')
+         .setBorder(true, true, true, true, true, true, '#cccccc', SpreadsheetApp.BorderStyle.SOLID);
+  }
   
   // Format instructions section header (Row 38) - CORRECTED row number
   sheet.getRange('A38:H38').setBackground('#ffc107')
