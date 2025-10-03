@@ -1117,16 +1117,16 @@ function getUKShiftTimes() {
 function getGlobalTeamTimes(ukTimes) {
   return {
     au: {
-      hour: ukTimes.isDST ? 23 : 0,   // AU starts at 00:00 GMT / 23:00 BST (midnight AU time)
-      display: `${ukTimes.isDST ? 23 : 0}:00 UK time (${ukTimes.timezone}) - AU shift start`
+      hour: ukTimes.isDST ? 0 : 0,    // AU starts at 00:00 BST / 00:00 GMT (always midnight UK time)
+      display: `00:00 UK time (${ukTimes.timezone}) - AU shift start`
     },
     uk: {
-      hour: ukTimes.startHour,        // UK starts at 08:00 GMT / 07:00 BST
-      display: `${ukTimes.startHour}:00 UK time (${ukTimes.timezone}) - UK shift start`
+      hour: ukTimes.isDST ? 8 : 8,    // UK starts at 08:00 BST / 08:00 GMT (always 8am UK time)
+      display: `08:00 UK time (${ukTimes.timezone}) - UK shift start`
     },
     us: {
-      hour: ukTimes.endHour,          // US starts at 16:00 GMT / 15:00 BST (when UK ends)
-      display: `${ukTimes.endHour}:00 UK time (${ukTimes.timezone}) - US shift start`
+      hour: ukTimes.isDST ? 16 : 16,  // US starts at 16:00 BST / 16:00 GMT (always 4pm UK time)
+      display: `16:00 UK time (${ukTimes.timezone}) - US shift start`
     }
   };
 }
