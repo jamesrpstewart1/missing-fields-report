@@ -1112,21 +1112,21 @@ function getUKShiftTimes() {
 /**
  * Calculate global team trigger times based on UK DST status
  * Triggers at the START of each team's shift
- * When UK DST changes, ALL team times shift by 1 hour
+ * When UK DST changes, ALL team times shift by 1 hour to maintain global coordination
  */
 function getGlobalTeamTimes(ukTimes) {
   return {
     au: {
-      hour: ukTimes.isDST ? 0 : 0,    // AU starts at 00:00 BST / 00:00 GMT (always midnight UK time)
-      display: `00:00 UK time (${ukTimes.timezone}) - AU shift start`
+      hour: ukTimes.isDST ? 0 : 23,   // AU starts at 00:00 BST / 23:00 GMT (midnight UK local time)
+      display: `${ukTimes.isDST ? '00:00' : '23:00'} UK time (${ukTimes.timezone}) - AU shift start`
     },
     uk: {
-      hour: ukTimes.isDST ? 8 : 8,    // UK starts at 08:00 BST / 08:00 GMT (always 8am UK time)
-      display: `08:00 UK time (${ukTimes.timezone}) - UK shift start`
+      hour: ukTimes.isDST ? 8 : 7,    // UK starts at 08:00 BST / 07:00 GMT (8am UK local time)
+      display: `${ukTimes.isDST ? '08:00' : '07:00'} UK time (${ukTimes.timezone}) - UK shift start`
     },
     us: {
-      hour: ukTimes.isDST ? 16 : 16,  // US starts at 16:00 BST / 16:00 GMT (always 4pm UK time)
-      display: `16:00 UK time (${ukTimes.timezone}) - US shift start`
+      hour: ukTimes.isDST ? 16 : 15,  // US starts at 16:00 BST / 15:00 GMT (4pm UK local time)
+      display: `${ukTimes.isDST ? '16:00' : '15:00'} UK time (${ukTimes.timezone}) - US shift start`
     }
   };
 }
