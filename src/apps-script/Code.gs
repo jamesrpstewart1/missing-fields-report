@@ -365,18 +365,18 @@ function globalTeamAutomatedCheck() {
     // Get current UK DST status for context
     const ukTimes = getUKShiftTimes();
     
-    if (currentHour === 0) {
-      // 00:00 UK time - AU team shift start
-      teamContext = 'AU Team';
-      shiftDescription = 'Start of AU shift (00:00 UK time)';
-    } else if (currentHour === 16) {
-      // 16:00 UK time - US team shift start
-      teamContext = 'US Team';
-      shiftDescription = 'Start of US shift (16:00 UK time)';
-    } else if (currentHour === ukTimes.endHour) {
-      // Variable UK end time (15:00 BST / 16:00 GMT) - UK team shift end
+    if (currentHour === ukTimes.startHour) {
+      // Variable UK start time (07:00 BST / 08:00 GMT) - UK team shift start
       teamContext = 'UK Team';
-      shiftDescription = `End of UK shift (${ukTimes.endHour}:00 ${ukTimes.timezone})`;
+      shiftDescription = `Start of UK shift (${ukTimes.startHour}:00 ${ukTimes.timezone})`;
+    } else if (currentHour === ukTimes.endHour) {
+      // Variable US start time (15:00 BST / 16:00 GMT) - US team shift start
+      teamContext = 'US Team';
+      shiftDescription = `Start of US shift (${ukTimes.endHour}:00 ${ukTimes.timezone})`;
+    } else if (currentHour === 23 || currentHour === 0) {
+      // AU team shift start (23:00 BST / 00:00 GMT) - AU team shift start
+      teamContext = 'AU Team';
+      shiftDescription = `Start of AU shift (${currentHour}:00 UK time)`;
     } else {
       // Unexpected trigger time - log and continue anyway
       teamContext = 'Unknown Team';
