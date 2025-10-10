@@ -70,6 +70,9 @@ function getDefaultConfiguration() {
     // Email configuration
     emailRecipients: ['jamesstewart@squareup.com'], // Development/testing
     
+    // Transcript URL Report recipients (separate from main report)
+    transcriptReportRecipients: ['jamesstewart@squareup.com'], // Testing only - will be updated later
+    
     // Brands (formerly business units)
     businessUnits: ['square', 'cash', 'afterpay'],
     

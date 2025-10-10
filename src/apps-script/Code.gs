@@ -117,6 +117,9 @@ function createCustomMenu() {
       .addItem('🛑 Cancel Weekly Automation', 'cancelWeeklyAutomation')
       .addItem('📊 Show Weekly Status', 'showWeeklyAutomationStatus'))
     .addSeparator()
+    .addSubMenu(ui.createMenu('📄 Transcript URL Report')
+      .addItem('📄 Run Transcript URL Report Now', 'runTranscriptUrlReport'))
+    .addSeparator()
     .addSubMenu(ui.createMenu('🧪 Testing')
       .addItem('🔗 Test API Connections', 'testAllApiConnections')
       .addItem('📧 Send Test Email', 'sendTestEmail'))
@@ -3321,6 +3324,438 @@ function updateREADMESheet() {
     ui.alert(
       '❌ README Update Failed',
       `Failed to update README sheet:\n\n${error.toString()}`,
+      ui.ButtonSet.OK
+    );
+  }
+}
+
+// =============================================================================
+// TRANSCRIPT URL TRACKING REPORT FUNCTIONS
+// =============================================================================
+
+/**
+ * Analyze transcript URL completion for Square and Cash incidents (SEV0-2)
+ * @param {Array} incidents - Array of incidents to analyze
+ * @return {Object} Analysis results with metrics and details
+ */
+function analyzeTranscriptUrls(incidents) {
+  console.log('📊 Analyzing transcript URL completion...');
+  
+  // Filter for Square + Cash only (incident.io platform)
+  const squareCashIncidents = incidents.filter(incident => 
+    (incident.businessUnit === 'Square' || incident.businessUnit === 'Cash') &&
+    incident.platform === 'incident.io'
+  );
+  
+  console.log(`   Total Square + Cash incidents: ${squareCashIncidents.length}`);
+  
+  // Filter for SEV0-2 (including Internal Impact variants)
+  const sev02Incidents = squareCashIncidents.filter(incident => {
+    let severity = '';
+    if (incident.severity) {
+      severity = typeof incident.severity === 'string' ? incident.severity : incident.severity.name;
+    } else if (incident.incident_severity?.name) {
+      severity = incident.incident_severity.name;
+    }
+    
+    // Match SEV0, SEV1, SEV2 (with or without "Internal Impact" suffix)
+    return severity && (
+      severity.startsWith('SEV0') || 
+      severity.startsWith('SEV1') || 
+      severity.startsWith('SEV2')
+    );
+  });
+  
+  console.log(`   SEV0-2 incidents: ${sev02Incidents.length}`);
+  
+  // Analyze transcript URL presence
+  const withTranscript = [];
+  const withoutTranscript = [];
+  
+  sev02Incidents.forEach(incident => {
+    // Check for transcript URL - field name differs by business unit
+    // Square uses "Google Meet Transcript", Cash uses "Incident Transcript"
+    let transcriptUrl = '';
+    
+    if (incident.businessUnit === 'Square') {
+      transcriptUrl = getIncidentIOFieldValue(incident, 'Google Meet Transcript');
+    } else if (incident.businessUnit === 'Cash') {
+      transcriptUrl = getIncidentIOFieldValue(incident, 'Incident Transcript');
+    }
+    
+    if (transcriptUrl && transcriptUrl.trim().length > 0) {
+      withTranscript.push(incident);
+    } else {
+      withoutTranscript.push(incident);
+    }
+  });
+  
+  console.log(`   With transcript URL: ${withTranscript.length}`);
+  console.log(`   Without transcript URL: ${withoutTranscript.length}`);
+  
+  // Calculate metrics
+  const totalAnalyzed = sev02Incidents.length;
+  const withCount = withTranscript.length;
+  const withoutCount = withoutTranscript.length;
+  const withPercentage = totalAnalyzed > 0 ? ((withCount / totalAnalyzed) * 100).toFixed(1) : '0.0';
+  const withoutPercentage = totalAnalyzed > 0 ? ((withoutCount / totalAnalyzed) * 100).toFixed(1) : '0.0';
+  
+  // Check for alert condition (ZERO incidents have transcripts)
+  const alertCondition = totalAnalyzed > 0 && withCount === 0;
+  
+  return {
+    totalAnalyzed,
+    withCount,
+    withoutCount,
+    withPercentage: parseFloat(withPercentage),
+    withoutPercentage: parseFloat(withoutPercentage),
+    alertCondition,
+    withTranscript,
+    withoutTranscript
+  };
+}
+
+/**
+ * Main function - Run Transcript URL Tracking Report
+ * Generates a report on transcript URL completion for Square/Cash SEV0-2 incidents
+ */
+function runTranscriptUrlReport() {
+  console.log('📊 Starting Transcript URL Tracking Report...');
+  
+  try {
+    // Calculate date range for last 7 days
+    const endDate = new Date();
+    const startDate = new Date(Date.now() - (7 * 24 * 60 * 60 * 1000));
+    startDate.setHours(0, 0, 0, 0);
+    endDate.setHours(23, 59, 59, 999);
+    
+    console.log(`📅 Date range: ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`);
+    
+    // Get configuration
+    const config = getConfiguration();
+    
+    // Override with custom date range for fetching
+    config.customDateRange = true;
+    config.dateRangeType = 'transcript_report';
+    config.startDate = startDate;
+    config.endDate = endDate;
+    
+    // Fetch incidents from Square and Cash only
+    const allIncidents = [];
+    
+    console.log('📡 Fetching Square incidents...');
+    const squareIncidents = fetchIncidentsFromIncidentIOWithDateRange('square', config);
+    allIncidents.push(...squareIncidents);
+    
+    console.log('📡 Fetching Cash incidents...');
+    const cashIncidents = fetchIncidentsFromIncidentIOWithDateRange('cash', config);
+    allIncidents.push(...cashIncidents);
+    
+    console.log(`📊 Total incidents fetched: ${allIncidents.length}`);
+    
+    // Analyze transcript URLs
+    const analysis = analyzeTranscriptUrls(allIncidents);
+    
+    console.log(`📊 Analysis complete:`);
+    console.log(`   Total SEV0-2 analyzed: ${analysis.totalAnalyzed}`);
+    console.log(`   With transcript: ${analysis.withCount} (${analysis.withPercentage}%)`);
+    console.log(`   Without transcript: ${analysis.withoutCount} (${analysis.withoutPercentage}%)`);
+    console.log(`   Alert condition: ${analysis.alertCondition ? 'YES - ZERO transcripts!' : 'No'}`);
+    
+    // Build and send email report
+    const emailContent = buildTranscriptReportEmail(analysis, startDate, endDate);
+    sendTranscriptReport(emailContent, config);
+    
+    console.log('✅ Transcript URL Tracking Report completed successfully!');
+    
+    // Show completion message if run manually
+    if (typeof SpreadsheetApp !== 'undefined') {
+      const ui = SpreadsheetApp.getUi();
+      const alertIcon = analysis.alertCondition ? '⚠️ ' : '✅ ';
+      const alertMessage = analysis.alertCondition ? 
+        '\n\n⚠️ WARNING: ZERO incidents have transcript URLs!' : '';
+      
+      ui.alert(
+        `${alertIcon}Transcript URL Report Complete`,
+        `Transcript URL tracking report completed!\n\n` +
+        `📊 REPORT METRICS:\n` +
+        `• Total SEV0-2 incidents analyzed: ${analysis.totalAnalyzed}\n` +
+        `• With transcript URLs: ${analysis.withCount} (${analysis.withPercentage}%)\n` +
+        `• Without transcript URLs: ${analysis.withoutCount} (${analysis.withoutPercentage}%)${alertMessage}\n\n` +
+        `📧 Report email sent to configured recipients.\n` +
+        `📅 Period: ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`,
+        ui.ButtonSet.OK
+      );
+    }
+    
+  } catch (error) {
+    console.error('❌ Transcript URL Tracking Report failed:', error.toString());
+    console.error('Stack trace:', error.stack);
+    throw error;
+  }
+}
+
+/**
+ * Build transcript URL report email content
+ * @param {Object} analysis - Analysis results from analyzeTranscriptUrls
+ * @param {Date} startDate - Report start date
+ * @param {Date} endDate - Report end date
+ * @return {string} HTML email content
+ */
+function buildTranscriptReportEmail(analysis, startDate, endDate) {
+  console.log('📧 Building transcript URL report email...');
+  
+  // Format dates
+  const startDateStr = startDate.toLocaleDateString();
+  const endDateStr = endDate.toLocaleDateString();
+  
+  // Determine alert styling
+  const alertStyle = analysis.alertCondition ? 
+    'background-color: #fff3cd; border: 2px solid #ffc107; padding: 15px; border-radius: 8px; margin: 20px 0;' :
+    '';
+  
+  const alertMessage = analysis.alertCondition ? `
+    <div style="${alertStyle}">
+      <h3 style="color: #856404; margin: 0 0 10px 0;">⚠️ ALERT: No Transcript URLs Found</h3>
+      <p style="color: #856404; margin: 0;">
+        <strong>WARNING:</strong> Zero incidents have transcript URLs in this period. 
+        This may indicate an issue with transcript generation. Please investigate immediately.
+      </p>
+    </div>
+  ` : '';
+  
+  // Build incidents without transcript table
+  let incidentsWithoutTranscriptRows = '';
+  if (analysis.withoutTranscript.length > 0) {
+    analysis.withoutTranscript.forEach(incident => {
+      const severity = incident.severity?.name || incident.incident_severity?.name || 'Unknown';
+      const businessUnit = incident.businessUnit || 'Unknown';
+      const createdDate = incident.created_at ? new Date(incident.created_at).toLocaleDateString() : 'Unknown';
+      const incidentUrl = incident.url || '#';
+      const title = incident.name || incident.summary || 'No title';
+      
+      const severityColor = severity.startsWith('SEV0') ? '#dc3545' : 
+                           severity.startsWith('SEV1') ? '#fd7e14' : 
+                           severity.startsWith('SEV2') ? '#ffc107' : '#17a2b8';
+      
+      incidentsWithoutTranscriptRows += `
+        <tr>
+          <td style="padding: 8px; border: 1px solid #ddd;">
+            <a href="${incidentUrl}" target="_blank" style="color: #007bff; text-decoration: none; font-weight: bold;">
+              ${incident.reference}
+            </a>
+          </td>
+          <td style="padding: 8px; border: 1px solid #ddd; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+            ${title}
+          </td>
+          <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">
+            <span style="color: ${severityColor}; font-weight: bold;">${severity}</span>
+          </td>
+          <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">
+            ${businessUnit}
+          </td>
+          <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">
+            ${createdDate}
+          </td>
+        </tr>
+      `;
+    });
+  } else {
+    incidentsWithoutTranscriptRows = `
+      <tr>
+        <td colspan="5" style="padding: 12px; border: 1px solid #ddd; text-align: center; color: #28a745; font-weight: bold;">
+          🎉 All SEV0-2 incidents have transcript URLs!
+        </td>
+      </tr>
+    `;
+  }
+  
+  const html = `
+    <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .header { background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+          .metric-card { background-color: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin: 10px 0; }
+          .metric-large { font-size: 24px; font-weight: bold; margin: 5px 0; }
+          .metric-label { font-size: 14px; color: #666; }
+          table { border-collapse: collapse; width: 100%; margin: 15px 0; }
+          th { background-color: #f8f9fa; padding: 10px; border: 1px solid #ddd; text-align: left; }
+          .success { color: #28a745; }
+          .warning { color: #ffc107; }
+          .danger { color: #dc3545; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1 style="color: #2c3e50; font-size: 28px; margin-bottom: 15px;">📊 Transcript URL Tracking Report</h1>
+          <p style="margin: 5px 0; font-size: 16px;"><strong>Period:</strong> ${startDateStr} to ${endDateStr}</p>
+          <p style="margin: 5px 0; font-size: 14px; color: #6c757d;"><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
+          <p style="margin: 10px 0 0 0; font-size: 14px; color: #6c757d;">
+            <strong>Scope:</strong> Square & Cash SEV0-2 incidents only
+          </p>
+        </div>
+        
+        ${alertMessage}
+        
+        <div class="metric-card">
+          <h2>📈 Summary Metrics</h2>
+          <div style="display: flex; flex-wrap: wrap; gap: 25px; justify-content: space-between;">
+            <div style="flex: 1; min-width: 180px; text-align: center; padding: 15px; border: 1px solid #e9ecef; border-radius: 6px; background-color: #f8f9fa;">
+              <div class="metric-large">${analysis.totalAnalyzed}</div>
+              <div class="metric-label" style="margin-top: 8px;">Total SEV0-2<br>Incidents Analyzed</div>
+            </div>
+            <div style="flex: 1; min-width: 180px; text-align: center; padding: 15px; border: 1px solid #e9ecef; border-radius: 6px; background-color: #f8f9fa;">
+              <div class="metric-large success">${analysis.withCount}</div>
+              <div class="metric-label" style="margin-top: 8px;">With Transcript URL<br>(${analysis.withPercentage}%)</div>
+            </div>
+            <div style="flex: 1; min-width: 180px; text-align: center; padding: 15px; border: 1px solid #e9ecef; border-radius: 6px; background-color: #f8f9fa;">
+              <div class="metric-large ${analysis.withoutCount > 0 ? 'danger' : 'success'}">${analysis.withoutCount}</div>
+              <div class="metric-label" style="margin-top: 8px;">Without Transcript URL<br>(${analysis.withoutPercentage}%)</div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="metric-card">
+          <h2>📋 Incidents Missing Transcript URLs</h2>
+          <p style="margin-bottom: 15px; color: #666;">
+            The following SEV0-2 incidents do not have transcript URLs. 
+            ${analysis.withoutCount > 0 ? 'Please verify if these incidents had incident calls that should have generated transcripts.' : ''}
+          </p>
+          <table>
+            <thead>
+              <tr>
+                <th>Incident ID</th>
+                <th>Title</th>
+                <th>Severity</th>
+                <th>Brand</th>
+                <th>Created Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${incidentsWithoutTranscriptRows}
+            </tbody>
+          </table>
+        </div>
+        
+        <div class="metric-card">
+          <h2>ℹ️ About This Report</h2>
+          <p><strong>Purpose:</strong> This report tracks transcript URL completion for Square and Cash SEV0-2 incidents to detect transcript generation issues early.</p>
+          <p><strong>Scope:</strong></p>
+          <ul>
+            <li>Platforms: Square + Cash only (incident.io platform)</li>
+            <li>Severity: SEV0, SEV1, SEV2 (including Internal Impact variants)</li>
+            <li>Time Range: Last 7 days</li>
+          </ul>
+          <p><strong>Note:</strong> Not all incidents require calls, so null transcript URLs are expected for some incidents. This report helps identify when <em>no</em> incidents have transcripts, which may indicate a system issue.</p>
+        </div>
+        
+        <div style="margin-top: 30px; padding: 15px; background-color: #f8f9fa; border-radius: 8px; font-size: 12px; color: #666;">
+          <p><strong>Next Steps:</strong> If you see an unusually low transcript URL completion rate, please:</p>
+          <ol>
+            <li>Manually verify that incident calls have been held for SEV0-2 incidents</li>
+            <li>Manually check the "Google Meet Transcript" field on some sample SEV's for Square and "Incident Transcript" field for Cash</li>
+            <li>Check the transcript generation bot system status</li>
+            <li>Review the incident.io custom field configuration for "Google Meet Transcript" (Square) and "Incident Transcript" (Cash)</li>
+          </ol>
+        </div>
+      </body>
+    </html>
+  `;
+  
+  return html;
+}
+
+/**
+ * Send transcript URL report email
+ * @param {string} emailContent - HTML email content
+ * @param {Object} config - Configuration object
+ */
+function sendTranscriptReport(emailContent, config) {
+  console.log('📧 Sending transcript URL report email...');
+  
+  try {
+    // Get transcript report recipients from config
+    let recipients = config.transcriptReportRecipients || config.emailRecipients || 'your-email@example.com';
+    
+    // Handle array of email addresses
+    if (Array.isArray(recipients)) {
+      recipients = recipients.join(',');
+    }
+    
+    console.log(`📧 Sending to recipients: ${recipients}`);
+    
+    // Send email
+    MailApp.sendEmail({
+      to: recipients,
+      subject: `📊 Transcript URL Tracking Report - Last 7 Days`,
+      htmlBody: emailContent,
+      attachments: []
+    });
+    
+    console.log(`✅ Transcript URL report email sent to: ${recipients}`);
+    
+  } catch (error) {
+    console.error('❌ Transcript URL report email failed:', error.toString());
+    throw error;
+  }
+}
+
+/**
+ * Add transcriptReportRecipients parameter to Config sheet
+ */
+function addTranscriptRecipientsToConfig() {
+  console.log('🔧 Adding transcriptReportRecipients parameter to Config sheet...');
+  
+  try {
+    let configSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Config');
+    
+    if (!configSheet) {
+      throw new Error('Config sheet not found. Please create a Config sheet first.');
+    }
+    
+    const data = configSheet.getDataRange().getValues();
+    
+    // Check if transcriptReportRecipients already exists
+    let paramExists = false;
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] === 'transcriptReportRecipients') {
+        paramExists = true;
+        console.log('⚠️ transcriptReportRecipients parameter already exists in Config sheet');
+        break;
+      }
+    }
+    
+    if (!paramExists) {
+      // Add the parameter
+      const newRow = configSheet.getLastRow() + 1;
+      configSheet.getRange(newRow, 1).setValue('transcriptReportRecipients');
+      configSheet.getRange(newRow, 2).setValue('jamesstewart@squareup.com'); // Default value
+      console.log('✅ Added transcriptReportRecipients parameter to Config sheet');
+    }
+    
+    // Show success message
+    const ui = SpreadsheetApp.getUi();
+    ui.alert(
+      '✅ Config Updated',
+      `The transcriptReportRecipients parameter has been ${paramExists ? 'found in' : 'added to'} your Config sheet!\n\n` +
+      `You can now customize the email recipients for the Transcript URL Report by:\n\n` +
+      `1. Go to the Config sheet\n` +
+      `2. Find the "transcriptReportRecipients" row\n` +
+      `3. Update the value with your desired email addresses\n` +
+      `   (comma-separated for multiple recipients)\n\n` +
+      `Example: user1@example.com,user2@example.com\n\n` +
+      `The Transcript URL Report will now use these recipients instead of the main emailRecipients.`,
+      ui.ButtonSet.OK
+    );
+    
+  } catch (error) {
+    console.error('❌ Failed to add transcriptReportRecipients to Config:', error.toString());
+    
+    const ui = SpreadsheetApp.getUi();
+    ui.alert(
+      '❌ Config Update Failed',
+      `Failed to add transcriptReportRecipients parameter:\n\n${error.toString()}`,
       ui.ButtonSet.OK
     );
   }
