@@ -367,10 +367,7 @@ function analyzeIncidents(incidents) {
       'Causal Type': { '0-7 days': 0, '7-30 days': 0, '30-90 days': 0, '90+ days': 0 },
       'Stabilization Type': { '0-7 days': 0, '7-30 days': 0, '30-90 days': 0, '90+ days': 0 },
       'Impact Start Date': { '0-7 days': 0, '7-30 days': 0, '30-90 days': 0, '90+ days': 0 },
-      'Stabilized at': { '0-7 days': 0, '7-30 days': 0, '30-90 days': 0, '90+ days': 0 },
-      'Transcript URL': { '0-7 days': 0, '7-30 days': 0, '30-90 days': 0, '90+ days': 0 },
-      'Time to Stabilize': { '0-7 days': 0, '7-30 days': 0, '30-90 days': 0, '90+ days': 0 },
-      'Time to Respond': { '0-7 days': 0, '7-30 days': 0, '30-90 days': 0, '90+ days': 0 }
+      'Stabilized at': { '0-7 days': 0, '7-30 days': 0, '30-90 days': 0, '90+ days': 0 }
     }
   };
   
@@ -544,7 +541,7 @@ function buildBusinessUnitRows(analysis, config) {
  * Build missing field rows for the summary with smart N/A handling
  */
 function buildMissingFieldRows(analysis, config) {
-  const fieldTypes = ['Affected Markets', 'Causal Type', 'Stabilization Type', 'Impact Start Date', 'Stabilized at', 'Transcript URL', 'Time to Stabilize', 'Time to Respond'];
+  const fieldTypes = ['Affected Markets', 'Causal Type', 'Stabilization Type', 'Impact Start Date', 'Stabilized at'];
   const buckets = ['0-7 days', '7-30 days', '30-90 days', '90+ days'];
   const availableBuckets = getAvailableAgeBuckets(config.maxLookbackDays || 365);
   const rows = [];

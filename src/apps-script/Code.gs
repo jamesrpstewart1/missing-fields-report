@@ -74,7 +74,10 @@ const INCIDENT_FILTERING = {
 
 // For sheet-bound script, we'll use SpreadsheetApp.getActiveSpreadsheet() instead of SHEET_ID
 
-// Required fields to monitor
+// Required fields to monitor (for daily reports)
+// Note: Time to Respond, Time to Stabilize, and Transcript URL removed as they are:
+// - Derived fields (calculated from timestamps)
+// - No longer needed for daily validation
 const REQUIRED_FIELDS = [
   'Affected Markets',
   'Causal Type',
@@ -3131,8 +3134,8 @@ function updateREADMESheet() {
       [''],
       ['🏢 BUSINESS UNIT & PLATFORM MAPPING'],
       ['Business Unit | Platform | API Source | Required Fields'],
-      ['Square | incident.io | api.incident.io/v2 | Affected Markets, Causal Type, Stabilization Type, Impact Start, Transcript URL'],
-      ['Cash | incident.io | api.incident.io/v2 | Affected Markets, Causal Type, Stabilization Type, Impact Start, Transcript URL'],
+      ['Square | incident.io | api.incident.io/v2 | Affected Markets, Causal Type, Stabilization Type, Impact Start, Postmortem URL'],
+      ['Cash | incident.io | api.incident.io/v2 | Affected Markets, Causal Type, Stabilization Type, Impact Start, Postmortem URL'],
       ['Afterpay | FireHydrant | api.firehydrant.io/v1 | Market'],
       [''],
       ['🔍 FILTERING CRITERIA'],
