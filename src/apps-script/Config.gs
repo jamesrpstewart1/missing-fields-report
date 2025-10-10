@@ -866,17 +866,45 @@ function formatEnhancedSummarySheet(sheet, totalRows) {
          .setBorder(true, true, true, true, true, true, '#cccccc', SpreadsheetApp.BorderStyle.SOLID);
   }
   
-  // Format instructions section header (Row 38) - CORRECTED row number
-  sheet.getRange('A38:H38').setBackground('#ffc107')
-                           .setFontColor('#000000')
-                           .setFontWeight('bold')
-                           .setFontSize(12);
+  // Format instructions section header - Find it dynamically
+  // Find the "💡 HOW TO FILTER INCIDENT DATA" row
+  let instructionHeaderRow = -1;
+  for (let row = 30; row <= totalRows; row++) {
+    try {
+      const cellValue = sheet.getRange(row, 1).getValue().toString();
+      if (cellValue.includes('💡 HOW TO FILTER INCIDENT DATA')) {
+        instructionHeaderRow = row;
+        console.log(`   Found instruction header row: ${row}`);
+        break;
+      }
+    } catch (e) {
+      continue;
+    }
+  }
   
-  // Format ALL instructions text rows (Rows 40 to end of instructions) - CORRECTED row number
-  const instructionStartRow = 40;
-  const instructionEndRow = totalRows; // Use actual total rows to cover all instruction rows
-  sheet.getRange(`A${instructionStartRow}:H${instructionEndRow}`).setBackground('#fffbf0')
-                                                                 .setFontStyle('italic');
+  if (instructionHeaderRow > 0) {
+    console.log(`   Formatting instruction header: row ${instructionHeaderRow}`);
+    sheet.getRange(`A${instructionHeaderRow}:H${instructionHeaderRow}`)
+         .setBackground('#fff2cc')
+         .setFontColor('#000000')
+         .setFontWeight('bold')
+         .setFontSize(12);
+  }
+  
+  // Format ALL instructions text rows starting from row 38 (first instruction text row)
+  // Find the actual start of instruction text by looking for the first instruction row after the header
+  let instructionTextStartRow = -1;
+  if (instructionHeaderRow > 0) {
+    // Instructions text starts 2 rows after the header (row after blank row)
+    instructionTextStartRow = instructionHeaderRow + 2;
+  }
+  
+  if (instructionTextStartRow > 0) {
+    const instructionEndRow = totalRows; // Use actual total rows to cover all instruction rows
+    console.log(`   Formatting instruction text rows from ${instructionTextStartRow} to ${instructionEndRow}`);
+    sheet.getRange(`A${instructionTextStartRow}:H${instructionEndRow}`).setBackground('#fffbf0')
+                                                                       .setFontStyle('italic');
+  }
   
   // Center align all numeric data - updated row ranges
   sheet.getRange('B13:G36').setHorizontalAlignment('center');
