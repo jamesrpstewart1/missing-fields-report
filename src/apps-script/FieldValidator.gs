@@ -46,10 +46,7 @@ function getPlatformRequiredFields(platform) {
       'Causal Type', 
       'Stabilization Type',
       'Impact Start',  // Impact start timestamp
-      'Stabilized at', // Stabilized timestamp
-      'Time to Stabilize',  // New: Time to stabilize timestamp
-      'Time to Respond',    // New: Time to respond duration
-      'Transcript URL'      // New: Google Meet transcript document
+      'Stabilized at'  // Stabilized timestamp
     ];
   } else if (platform === 'firehydrant') {
     return ['Market']; // Only Market field for FireHydrant/Afterpay
@@ -81,15 +78,6 @@ function hasRequiredField(incident, fieldName) {
  * Get field value from incident.io incident with field name mapping
  */
 function getIncidentIOFieldValue(incident, fieldName) {
-  // Handle new custom field for Transcript URL
-  if (fieldName === 'Transcript URL') {
-    const transcriptValues = getCustomFieldValue(incident, 'Google Meet Transcript');
-    if (transcriptValues.length > 0 && transcriptValues[0] && transcriptValues[0].trim()) {
-      return transcriptValues[0].trim();
-    }
-    return '';
-  }
-  
   // Handle Impact Start - check custom timestamps
   if (fieldName === 'Impact Start') {
     // TODO: Need to investigate incident.io custom timestamps structure
@@ -100,17 +88,6 @@ function getIncidentIOFieldValue(incident, fieldName) {
   // Handle Stabilized at - check custom timestamps
   if (fieldName === 'Stabilized at') {
     return getStabilizedAtTimestamp(incident);
-  }
-  
-  // Handle Time to Stabilize - check custom timestamps
-  if (fieldName === 'Time to Stabilize') {
-    // Use the new function to get Time to Stabilize timestamp
-    return getTimeToStabilizeTimestamp(incident);
-  }
-  
-  // Handle Time to Respond - check duration metrics
-  if (fieldName === 'Time to Respond') {
-    return getTimeToRespondTimestamp(incident);
   }
   
   // Map required field names to actual incident.io field names
