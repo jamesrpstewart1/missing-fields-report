@@ -255,12 +255,16 @@ function getCustomFieldValue(incident, fieldName) {
  * Get field value from FireHydrant incident
  */
 function getFireHydrantFieldValue(incident, fieldName) {
-  // FireHydrant uses custom_fields for custom data
-  if (!incident.custom_fields || typeof incident.custom_fields !== 'object') {
+  // FireHydrant uses custom_fields as an ARRAY (not an object with field names as keys)
+  if (!incident.custom_fields || !Array.isArray(incident.custom_fields)) {
     return [''];
   }
   
-  const customField = incident.custom_fields[fieldName];
+  // Search through the array to find the field with matching name
+  const customField = incident.custom_fields.find(field => 
+    field.name === fieldName || field.slug === fieldName
+  );
+  
   if (customField && customField.value) {
     return [customField.value];
   }

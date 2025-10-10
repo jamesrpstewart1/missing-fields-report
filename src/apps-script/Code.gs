@@ -1264,6 +1264,103 @@ function debugConfigurationLoading() {
 }
 
 /**
+ * Debug specific Afterpay incidents to check Market field
+ */
+function debugAfterpayIncidents() {
+  console.log('🔍 Debugging Afterpay incidents: #1737, #1736, #1735, #1734');
+  
+  try {
+    const config = getConfiguration();
+    const afterpayConfig = CONFIG.firehydrant.afterpay;
+    
+    if (!afterpayConfig || !afterpayConfig.apiKey) {
+      throw new Error('Missing Afterpay API configuration');
+    }
+    
+    // Fetch recent Afterpay incidents
+    console.log('📡 Fetching Afterpay incidents...');
+    const afterpayIncidents = fetchIncidentsFromFireHydrant('afterpay', config);
+    
+    console.log(`📊 Total Afterpay incidents fetched: ${afterpayIncidents.length}`);
+    
+    // Filter for the specific incidents
+    const targetReferences = ['#1737', '#1736', '#1735', '#1734'];
+    const targetIncidents = afterpayIncidents.filter(inc => 
+      targetReferences.includes(inc.reference)
+    );
+    
+    console.log(`\n🎯 Found ${targetIncidents.length} target incidents:`);
+    
+    targetIncidents.forEach(incident => {
+      console.log(`\n📋 Incident: ${incident.reference}`);
+      console.log(`   ID: ${incident.id}`);
+      console.log(`   Created: ${incident.created_at}`);
+      console.log(`   Status: ${incident.status || 'Unknown'}`);
+      
+      // Check custom_fields structure
+      console.log(`\n   🔍 Custom Fields Structure:`);
+      if (incident.custom_fields) {
+        console.log(`   Type: ${typeof incident.custom_fields}`);
+        console.log(`   Keys: ${Object.keys(incident.custom_fields).join(', ')}`);
+        
+        // Check for Market field variations
+        const marketVariations = ['market', 'Market', 'markets', 'Markets'];
+        marketVariations.forEach(variation => {
+          if (incident.custom_fields[variation]) {
+            console.log(`\n   ✅ Found "${variation}":`, JSON.stringify(incident.custom_fields[variation]));
+          }
+        });
+        
+        // Show all custom fields
+        console.log(`\n   📋 All custom fields:`);
+        Object.entries(incident.custom_fields).forEach(([key, value]) => {
+          console.log(`      "${key}": ${JSON.stringify(value)}`);
+        });
+      } else {
+        console.log(`   ❌ No custom_fields found`);
+      }
+      
+      // Test the field validator
+      console.log(`\n   🧪 Testing field validation:`);
+      const marketValue = getFireHydrantFieldValueMapped(incident, 'Market');
+      console.log(`   getFireHydrantFieldValueMapped('Market'): "${marketValue}"`);
+      
+      const hasMarket = hasRequiredField(incident, 'Market');
+      console.log(`   hasRequiredField('Market'): ${hasMarket}`);
+    });
+    
+    // Show results in UI
+    const ui = SpreadsheetApp.getUi();
+    let message = `Found ${targetIncidents.length} of 4 target incidents.\n\n`;
+    
+    targetIncidents.forEach(incident => {
+      const marketValue = getFireHydrantFieldValueMapped(incident, 'Market');
+      const hasMarket = hasRequiredField(incident, 'Market');
+      message += `${incident.reference}: Market="${marketValue}" (${hasMarket ? 'VALID' : 'MISSING'})\n`;
+    });
+    
+    message += `\nCheck the Apps Script logs (View > Logs) for detailed field structure.`;
+    
+    ui.alert(
+      '🔍 Afterpay Incidents Debug',
+      message,
+      ui.ButtonSet.OK
+    );
+    
+  } catch (error) {
+    console.error('❌ Debug failed:', error.toString());
+    console.error('Stack trace:', error.stack);
+    
+    const ui = SpreadsheetApp.getUi();
+    ui.alert(
+      '❌ Debug Failed',
+      `Debug failed:\n\n${error.toString()}`,
+      ui.ButtonSet.OK
+    );
+  }
+}
+
+/**
  * Debug function to investigate specific incidents
  */
 function debugSpecificIncidents() {
