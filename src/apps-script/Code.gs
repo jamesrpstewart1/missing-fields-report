@@ -2486,15 +2486,15 @@ function sendWeeklySummaryEmail(weeklySummary, config) {
   try {
     const emailContent = buildWeeklySummaryEmailContent(weeklySummary, config);
     
-    // Get email recipients from config
-    let recipients = config.emailRecipients || 'your-email@example.com';
+    // Get email recipients from config - use weeklyReportRecipients if available, otherwise fall back to emailRecipients
+    let recipients = config.weeklyReportRecipients || config.emailRecipients || 'your-email@example.com';
     
     // Handle array of email addresses
     if (Array.isArray(recipients)) {
       recipients = recipients.join(',');
     }
     
-    console.log(`📧 Sending to recipients: ${recipients}`);
+    console.log(`📧 Sending weekly summary to recipients: ${recipients}`);
     
     // Send email
     MailApp.sendEmail({
