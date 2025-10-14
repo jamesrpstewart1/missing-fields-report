@@ -2841,7 +2841,7 @@ function buildWeeklySummaryEmailContent(weeklySummary, config) {
                   <th style="width: 15%; text-align: center;">Completion Rate</th>
                   <th style="width: 15%; text-align: center;">Complete</th>
                   <th style="width: 15%; text-align: center;">Missing</th>
-                  <th style="width: 25%; text-align: center;">Most Problematic Unit</th>
+                  <th style="width: 25%; text-align: center;">Lowest Completion</th>
                 </tr>
               </thead>
               <tbody>
@@ -2875,7 +2875,7 @@ function buildWeeklySummaryEmailContent(weeklySummary, config) {
                         ${fieldData.missing}
                       </td>
                       <td style="padding: 8px; border: 1px solid #ddd; text-align: center; font-size: 12px; color: #6c757d;">
-                        ${worstUnit || 'All units equal'}
+                        ${worstUnit || 'All brands equal'}
                       </td>
                     </tr>
                   `;
