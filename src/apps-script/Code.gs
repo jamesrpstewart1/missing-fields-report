@@ -2980,9 +2980,6 @@ function buildWeeklySummaryEmailContent(weeklySummary, config) {
             <li><strong>Stabilization Type</strong></li>
             <li><strong>Impact Start</strong></li>
             <li><strong>Stabilized at</strong></li>
-            <li><strong>Time to Stabilize</strong></li>
-            <li><strong>Time to Respond</strong></li>
-            <li><strong>Transcript URL</strong></li>
           </ul>
         </div>
         
