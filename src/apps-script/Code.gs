@@ -3562,8 +3562,8 @@ function runTranscriptUrlReport() {
     
     console.log('✅ Transcript URL Tracking Report completed successfully!');
     
-    // Show completion message if run manually
-    if (typeof SpreadsheetApp !== 'undefined') {
+    // Show completion message if run manually (not from a trigger)
+    try {
       const ui = SpreadsheetApp.getUi();
       const alertIcon = analysis.alertCondition ? '⚠️ ' : '✅ ';
       const alertMessage = analysis.alertCondition ? 
@@ -3580,6 +3580,9 @@ function runTranscriptUrlReport() {
         `📅 Period: ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`,
         ui.ButtonSet.OK
       );
+    } catch (e) {
+      // Running from trigger - UI not available, which is expected
+      console.log('📧 Report completed from automated trigger (no UI available)');
     }
     
   } catch (error) {
