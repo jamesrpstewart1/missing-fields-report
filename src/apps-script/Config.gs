@@ -3627,11 +3627,13 @@ function calculateMedianFromTimeArray(timeArray) {
     };
   }
   
-  if (timeArray.length < 2) {
+  // Changed: If n=1, use the single value directly instead of showing "Insufficient data"
+  if (timeArray.length === 1) {
+    const singleValue = timeArray[0].seconds;
     return {
-      display: `Insufficient data (n=${timeArray.length})`,
-      seconds: 0,
-      sampleSize: timeArray.length
+      display: `${formatSecondsToTime(singleValue)} (n=1)`,
+      seconds: singleValue,
+      sampleSize: 1
     };
   }
   
