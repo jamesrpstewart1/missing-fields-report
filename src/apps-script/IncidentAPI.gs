@@ -813,6 +813,17 @@ function fetchIncidentsFromIncidentIOWithDateRange(businessUnit, config) {
         console.log(`     📊 Weekly status filter (exclude ${INCIDENT_FILTERING.excludeStatuses.join(', ')}): ${beforeStatusFilter} → ${enrichedIncidents.length} incidents`);
       }
       
+      // Apply incident type exclusion filter (applies to both daily and weekly reports)
+      const beforeTypeFilter = enrichedIncidents.length;
+      enrichedIncidents = enrichedIncidents.filter(incident => {
+        const type = incident.incident_type?.name || incident.type || '';
+        const shouldExclude = INCIDENT_FILTERING.excludeTypes.some(excludedType => type.includes(excludedType));
+        return !shouldExclude;
+      });
+      if (beforeTypeFilter !== enrichedIncidents.length) {
+        console.log(`     📊 Type exclusion filter (exclude ${INCIDENT_FILTERING.excludeTypes.join(', ')}): ${beforeTypeFilter} → ${enrichedIncidents.length} incidents`);
+      }
+      
       // Apply severity filtering if enabled
       if (severityFilteringEnabled) {
         const beforeFilterCount = enrichedIncidents.length;
@@ -936,6 +947,17 @@ function fetchIncidentsFromFireHydrantWithDateRange(businessUnit, config) {
           return !shouldExclude;
         });
         console.log(`     📊 Weekly status filter (exclude ${INCIDENT_FILTERING.excludeStatuses.join(', ')}): ${beforeStatusFilter} → ${filteredIncidents.length} incidents`);
+      }
+      
+      // Apply incident type exclusion filter (applies to both daily and weekly reports)
+      const beforeTypeFilter = filteredIncidents.length;
+      filteredIncidents = filteredIncidents.filter(incident => {
+        const type = incident.incident_type?.name || incident.type || '';
+        const shouldExclude = INCIDENT_FILTERING.excludeTypes.some(excludedType => type.includes(excludedType));
+        return !shouldExclude;
+      });
+      if (beforeTypeFilter !== filteredIncidents.length) {
+        console.log(`     📊 Type exclusion filter (exclude ${INCIDENT_FILTERING.excludeTypes.join(', ')}): ${beforeTypeFilter} → ${filteredIncidents.length} incidents`);
       }
       
       // Apply severity filtering if enabled
