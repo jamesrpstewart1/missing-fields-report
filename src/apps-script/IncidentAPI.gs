@@ -85,6 +85,20 @@ function fetchIncidentsFromIncidentIO(businessUnit, config) {
         slackUrl: getIncidentIOSlackUrl(incident)
       }));
       
+      // Apply incident type exclusion filter (applies to both daily and weekly reports)
+      // Make comparison case-insensitive to catch variations like "preemptive sev", "Preemptive SEV", etc.
+      const beforeTypeFilter = enrichedIncidents.length;
+      enrichedIncidents = enrichedIncidents.filter(incident => {
+        const type = (incident.incident_type?.name || incident.type || '').toLowerCase();
+        const shouldExclude = INCIDENT_FILTERING.excludeTypes.some(excludedType => 
+          type.includes(excludedType.toLowerCase())
+        );
+        return !shouldExclude;
+      });
+      if (beforeTypeFilter !== enrichedIncidents.length) {
+        console.log(`     📊 Type exclusion filter (exclude ${INCIDENT_FILTERING.excludeTypes.join(', ')}): ${beforeTypeFilter} → ${enrichedIncidents.length} incidents`);
+      }
+      
       // Apply severity filtering if enabled
       if (severityFilteringEnabled) {
         const beforeFilterCount = enrichedIncidents.length;
@@ -814,10 +828,13 @@ function fetchIncidentsFromIncidentIOWithDateRange(businessUnit, config) {
       }
       
       // Apply incident type exclusion filter (applies to both daily and weekly reports)
+      // Make comparison case-insensitive to catch variations like "preemptive sev", "Preemptive SEV", etc.
       const beforeTypeFilter = enrichedIncidents.length;
       enrichedIncidents = enrichedIncidents.filter(incident => {
-        const type = incident.incident_type?.name || incident.type || '';
-        const shouldExclude = INCIDENT_FILTERING.excludeTypes.some(excludedType => type.includes(excludedType));
+        const type = (incident.incident_type?.name || incident.type || '').toLowerCase();
+        const shouldExclude = INCIDENT_FILTERING.excludeTypes.some(excludedType => 
+          type.includes(excludedType.toLowerCase())
+        );
         return !shouldExclude;
       });
       if (beforeTypeFilter !== enrichedIncidents.length) {
